@@ -25,6 +25,10 @@
     [else null])
   )
 
+(define (tab_pre_processor len)
+  (eq? (peek) len)
+  )
+
 (define python-keywords (list "False" "class" "finally" "is" "return" "None" "continue" 
                               "for"        "lambda"     "try"        "True"      "def"
                               "from"       "nonlocal"   "while"
@@ -83,18 +87,26 @@
   (operator (:or "+"  "-"   "*"  "**" "//" "////" "%"
                  "<<" ">>"  "&"  "|"  "^"  "~"    "<"
                  ">"  "<="  ">=" "==" "!="))
-  (punct (:or ":" "="))
+  (delimiter (:or "(" ")" "[" "]" "{" "}"
+                  "," ":" "." ";" "@" "="
+                  "+=" "-=" "*=" "/=" "//=" "%="
+                  "&=" "|=" "^=" ">>=" "<<=" "**="))
+  (imagnumber (:: (:or floatnumber intpart) (:or "j" "J")))
+  (punct (:or operator delimiter))
   )
 
 
 (define PYTHONIA-OPTIMUS-LEXER
   (lexer
    [#\newline (cons `(NEWLINE) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [(:: "\n" (:* space))  (cons `(NEWLINE) `,(cons `,(tab_processor (string-length lexeme)) (PYTHONIA-OPTIMUS-LEXER test-input)))]
+   [(:: "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (string-length lexeme))
+                                                  (PYTHONIA-OPTIMUS-LEXER test-input)
+                                                  (cons `,(tab_processor (string-length lexeme)) (PYTHONIA-OPTIMUS-LEXER test-input))))]
    [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))
                                      (cons `(ID ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input)))]
    [#\t (cons `(ERROR ,lexeme))]
-   [(:or integer floatnumber stringliteral bytesliteral) (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))]
+   [(:: "#" (:* any-char) "\n") (PYTHONIA-OPTIMUS-LEXER test-input)]
+   [(:or integer floatnumber stringliteral bytesliteral imagnumber) (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))]
    [(:+ operator) (cons `(OP ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))]
    [punct (cons `(PUNCT ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))]
    [" " (PYTHONIA-OPTIMUS-LEXER test-input)]
@@ -102,4 +114,4 @@
    ))
 
 
-(define test-input (open-input-string "def funct_1:\n  x=4e-10\n  y=\"I like cheese\"\n"))
+(define test-input (open-input-string "def funct_1:\n  x=4e-10\n  y=\"I like cheese\"\ndef funct 2:\n"))
