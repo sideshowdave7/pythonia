@@ -21,7 +21,8 @@
   (cond 
     [(zero? (length stack)) (push len) `(INDENT)]
     [(< (peek) len) (push len) `(INDENT)]
-    [(> (peek) len) (pop) `(DEDENT) (tab_processor len)])
+    [(> (peek) len) (pop) `(DEDENT) (tab_processor len)]
+    [else null])
   )
 
 (define python-keywords (list "False" "class" "finally" "is" "return" "None" "continue" 
@@ -89,7 +90,7 @@
 (define PYTHONIA-OPTIMUS-LEXER
   (lexer
    [#\newline (cons `(NEWLINE) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [(:: "\n" (:* space))  (cons `,(tab_processor (string-length lexeme)) (PYTHONIA-OPTIMUS-LEXER test-input))]
+   [(:: "\n" (:* space))  (cons `(NEWLINE) `,(cons `,(tab_processor (string-length lexeme)) (PYTHONIA-OPTIMUS-LEXER test-input)))]
    [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))
                                      (cons `(ID ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input)))]
    [#\t (cons `(ERROR ,lexeme))]
@@ -97,8 +98,8 @@
    [(:+ operator) (cons `(OP ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))]
    [punct (cons `(PUNCT ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))]
    [" " (PYTHONIA-OPTIMUS-LEXER test-input)]
-   [(eof) `()]
+   [(eof) `((ENDMARKER))]
    ))
 
 
-(define test-input (open-input-string "def funct_1:\n  x=='5'\n"))
+(define test-input (open-input-string "def funct_1:\n  x=4e-10\n  y=\"I like cheese\"\n"))
