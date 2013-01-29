@@ -3,9 +3,9 @@
 (require parser-tools/lex)
 (require (prefix-in : parser-tools/lex-sre))
 
-(define stack (list 1))
+(define stack (list 0))
 
-(define (push x) 
+(define (push x)
   (set! stack (append (list x) stack )))
 
 (define (pop)
@@ -61,19 +61,19 @@
   (hexdigit (:or digit (char-range "a" "f") (char-range "A" "F")))
   (bindigit (:or "0" "1"))
   (floatnumber (:or pointfloat exponentfloat))
-  (pointfloat (:: intpart (:or fraction intpart)))
+  (pointfloat (:: (:? intpart) (:or fraction (:: intpart "."))))
   (exponentfloat (:: (:or intpart pointfloat) exponent))
   (intpart (:+ digit))
   (fraction (:: "." (:+ digit)))
   (exponent (:: (:or "e" "E") (:or "+" "-") (:+ digit)))
-  (stringliteral (:or shortstring longstring))
+  (stringliteral (:: (:? stringprefix) (:or shortstring longstring)))
   (stringprefix (:or "r" "u" "R" "U"))
-  (shortstring (:or (:: "'" (:* shortstringitem) "'") (:: "\"" shortstringitem "\"")))
-  (longstring (:or (:: "'''" (:* longstringitem) "'''") (:: "\"\"\"" longstringitem "\"\"\"")))
+  (shortstring (:or (:: "'" (:* shortstringitem) "'") (:: "\"" (:* shortstringitem) "\"")))
+  (longstring (:or (:: "'''" (:* longstringitem) "'''") (:: "\"\"\"" (:* longstringitem) "\"\"\"")))
   (shortstringitem (:or shortstringchar stringescapeseq))
   (longstringitem (:or longstringchar stringescapeseq))
-  (shortstringchar (complement (:or "\\" "\n" "\"")))
-  (longstringchar (complement "\\"))
+  (shortstringchar (:~ (:or "\\" "\n" "\"")))
+  (longstringchar (char-complement "\\"))
   (stringescapeseq (:: "\\" any-char))
   (bytesliteral (:: bytesprefix (:or shortbytes longbytes)))
   (bytesprefix (:or "b" "B" "br" "Br" "bR" "BR" "rb" "rB" "Rb" "RB"))
@@ -81,8 +81,8 @@
   (longbytes (:or(:: "'''" longbytesitem "'''") (:: "\"\"\"" longbytesitem "\"\"\"")))
   (shortbytesitem (:or shortbyteschar bytesescapeseq))
   (longbytesitem (:or longbyteschar bytesescapeseq))
-  (shortbyteschar (complement (:or "\\" "\n" "\"")))
-  (longbyteschar (complement "\\"))
+  (shortbyteschar (:~ (:or "\\" "\n" "\"")))
+  (longbyteschar (char-complement "\\"))
   (bytesescapeseq (:: "\\" any-char))
   (operator (:or "+"  "-"   "*"  "**" "//" "////" "%"
                  "<<" ">>"  "&"  "|"  "^"  "~"    "<"
@@ -94,25 +94,28 @@
   (imagnumber (:: (:or floatnumber intpart) (:or "j" "J")))
   (punct (:or operator delimiter))
   (allbutnewline (:~ "\n"))
-  (comment (:: (:? "\n") (:* space) "#" (:* allbutnewline) "\n"))
-  (emptyline (:: (:+ space) "\n"))
+  (comment (:: "#" (:* allbutnewline) "\n"))
   )
 
 
 (define PYTHONIA-OPTIMUS-LEXER
   (lexer
-   ;;[#\newline (cons `(NEWLINE) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [(:or (:+ emptyline)) (PYTHONIA-OPTIMUS-LEXER test-input)]
-   [(:: "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (string-length lexeme))
+   ;;[(:+ "\n")  (PYTHONIA-OPTIMUS-LEXER test-input)]
+   ;;[(:+ emptyline)  (PYTHONIA-OPTIMUS-LEXER test-input)]
+   [(:: "\\" "\n")  (PYTHONIA-OPTIMUS-LEXER test-input)]
+   [(:: (:or (:* "\n") (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (string-length (string-replace lexeme "\n" "")))
                                                   (PYTHONIA-OPTIMUS-LEXER test-input)
-                                                  (tab_processor (string-length lexeme))))]
+                                                  (tab_processor (string-length (string-replace lexeme "\n" "")))))]
                                                   ;;(cons `,(tab_processor (string-length lexeme)) (PYTHONIA-OPTIMUS-LEXER test-input))))]
-   [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))
+   [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (PYTHONIA-OPTIMUS-LEXER test-input))
                                      (cons `(ID ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input)))]
    [#\t (cons `(ERROR ,lexeme))]
-   [comment (cons `(NEWLINE) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [(:or integer floatnumber stringliteral bytesliteral imagnumber) (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [operator (cons `(OP ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))]
+   [comment (PYTHONIA-OPTIMUS-LEXER test-input)]
+   [stringliteral (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER test-input))]
+   [(:or floatnumber bytesliteral) (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER test-input))]
+   [(:or decimalinteger bininteger) (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER test-input))]
+   [hexinteger (cons `(LIT ,(string->number (string-replace lexeme "0" "#"))) (PYTHONIA-OPTIMUS-LEXER test-input))]
+   [imagnumber (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER test-input))]
    [punct (cons `(PUNCT ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))]
    [" " (PYTHONIA-OPTIMUS-LEXER test-input)]
    [(eof) `((ENDMARKER))]
