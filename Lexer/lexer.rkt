@@ -101,7 +101,7 @@
 (define PYTHONIA-OPTIMUS-LEXER
   (lexer
    [(:: "\\" (:* space) "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
-   [(:: (:or (:* "\n") (:* whitespace) (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
+   [(:: (:* (:* "\n") (:* whitespace) (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
                                                   (PYTHONIA-OPTIMUS-LEXER input-port)
                                                   (tab_processor (indent-length lexeme))))]                                                
    [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))
@@ -113,7 +113,8 @@
    [(:or decimalinteger bininteger) (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [(:or bytesliteral hexinteger) (cons `(LIT ,(replace-numid lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [imagnumber (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (cond [(equal? lexeme "(") (implicit-lj-lexer input-port)][else (PYTHONIA-OPTIMUS-LEXER input-port)]))]
+   [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (cond [(equal? lexeme "(") (implicit-lj-lexer input-port)]
+                                                                 [else (PYTHONIA-OPTIMUS-LEXER input-port)]))]
    [" " (PYTHONIA-OPTIMUS-LEXER input-port)]
    [(eof) `((ENDMARKER))]
    ))
@@ -126,7 +127,7 @@
    [" " (implicit-lj-lexer input-port)]
    [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (implicit-lj-lexer input-port))
                                      (cons `(ID ,(string-append "\"" lexeme "\"")) (implicit-lj-lexer input-port)))]
-   [(:or "]" ")" "}") (cons `(PUNCT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:or "]" ")" "}") (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (implicit-lj-lexer input-port))]
    [stringliteral (cons `(LIT ,(read (open-input-string lexeme))) (implicit-lj-lexer input-port))]
    [comment (implicit-lj-lexer input-port)]
@@ -141,8 +142,16 @@
   (string-replace (string-replace lexeme "0" "#") "o" "#"))
   
 
+(define (stringliteral-removelinejoints lexeme)
+   (regexp-match #rx" *" lexeme))
+
 (define (indent-length lexeme)
   (string-length (car (regexp-match #rx"\n[ ]*$" lexeme))))
-         
+
+
+
+(define (run)
+  (for-each (lambda (arg) (pretty-display arg)) (PYTHONIA-OPTIMUS-LEXER test-input)))
+
 
 (define test-input (open-input-file "test.py" #:mode 'text))

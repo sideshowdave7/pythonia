@@ -1,6 +1,8 @@
 #comment 1
  #comment2
 
+# Factorial
+
 def fact(y\
 ):
 
@@ -16,5 +18,5 @@ def fact(y\
 
 - 1)
 
-s = "foo\
-\\ \n\'\""
+s="foo\
+\\ \n'\""
