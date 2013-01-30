@@ -43,8 +43,6 @@
 
 (define-tokens jrr-tolkeins (NEWLINE INDENT DEDENT ID LIT KEYWORD PUNCT ENDMARKER))
 
-                           
-
 
 (define-lex-abbrevs
   (space " ")
@@ -100,9 +98,6 @@
   (comment (:: "#" (:* allbutnewline) "\n"))
   )
 
-(define endtoken (string))
-
-
 (define PYTHONIA-OPTIMUS-LEXER
   (lexer
    [(:: "\\" (:* space) "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
@@ -123,9 +118,6 @@
    [(eof) `((ENDMARKER))]
    ))
 
-(define (replace-numid lexeme)
-  (string-replace (string-replace lexeme "0" "#") "o" "#"))
-  
 
 (define implicit-lj-lexer
   (lexer
@@ -145,6 +137,9 @@
    [imagnumber (cons `(LIT ,(read (open-input-string lexeme))) (implicit-lj-lexer input-port))]
    ))
                          
+(define (replace-numid lexeme)
+  (string-replace (string-replace lexeme "0" "#") "o" "#"))
+  
 
 (define (indent-length lexeme)
   (string-length (car (regexp-match #rx"\n[ ]*$" lexeme))))
