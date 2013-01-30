@@ -3,6 +3,8 @@
 
 # Factorial
 
+x=0b00101
+
 def fact(y\
 ):
 

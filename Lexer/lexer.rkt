@@ -110,9 +110,9 @@
    [comment (PYTHONIA-OPTIMUS-LEXER input-port)]
    [stringliteral (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [floatnumber (cons `(LIT ,(display lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [(:or decimalinteger bininteger) (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [(:or bytesliteral hexinteger) (cons `(LIT ,(replace-numid lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [imagnumber (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:or decimalinteger bytesliteral) (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:or bininteger hexinteger octinteger) (cons `(LIT ,(replace-numid lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [imagnumber (cons `(LIT ,(replace-imag lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (cond [(equal? lexeme "(") (implicit-lj-lexer input-port)]
                                                                  [else (PYTHONIA-OPTIMUS-LEXER input-port)]))]
    [" " (PYTHONIA-OPTIMUS-LEXER input-port)]
@@ -129,21 +129,24 @@
                                      (cons `(ID ,(string-append "\"" lexeme "\"")) (implicit-lj-lexer input-port)))]
    [(:or "]" ")" "}") (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (implicit-lj-lexer input-port))]
-   [stringliteral (cons `(LIT ,(read (open-input-string lexeme))) (implicit-lj-lexer input-port))]
+   [stringliteral (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
    [comment (implicit-lj-lexer input-port)]
    [stringliteral (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
    [floatnumber (cons `(LIT ,(display lexeme)) (implicit-lj-lexer input-port))]
-   [(:or decimalinteger bininteger) (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
-   [(:or bytesliteral hexinteger) (cons `(LIT ,(replace-numid lexeme)) (implicit-lj-lexer input-port))]
-   [imagnumber (cons `(LIT ,(read (open-input-string lexeme))) (implicit-lj-lexer input-port))]
+   [(:or decimalinteger bytesliteral) (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
+   [(:or bininteger hexinteger octinteger) (cons `(LIT ,(replace-numid lexeme)) (implicit-lj-lexer input-port))]
+   [imagnumber (cons `(LIT ,(replace-imag lexeme)) (implicit-lj-lexer input-port))]
    ))
                          
 (define (replace-numid lexeme)
-  (string-replace (string-replace lexeme "0" "#") "o" "#"))
+  (string-replace (string-replace lexeme "0" "#" #:all? #f) "o" "#" #:all? #f))
+  
+(define (replace-imag lexeme)
+  (string-replace (string-replace lexeme "j" "i") "J" "i"))
   
 
 (define (stringliteral-removelinejoints lexeme)
-   (regexp-match #rx" *" lexeme))
+   (regexp-match #rx"\\ *\n" lexeme))
 
 (define (indent-length lexeme)
   (string-length (car (regexp-match #rx"\n[ ]*$" lexeme))))
