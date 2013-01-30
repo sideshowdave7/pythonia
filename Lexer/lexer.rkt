@@ -97,29 +97,43 @@
   (comment (:: "#" (:* allbutnewline) "\n"))
   )
 
+(define endtoken (string))
+
 
 (define PYTHONIA-OPTIMUS-LEXER
   (lexer
-   ;;[(:+ "\n")  (PYTHONIA-OPTIMUS-LEXER test-input)]
-   ;;[(:+ emptyline)  (PYTHONIA-OPTIMUS-LEXER test-input)]
-   [(:: "\\" "\n")  (PYTHONIA-OPTIMUS-LEXER test-input)]
+   [(:: "\\" "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
    [(:: (:or (:* "\n") (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (string-length (string-replace lexeme "\n" "")))
-                                                  (PYTHONIA-OPTIMUS-LEXER test-input)
-                                                  (tab_processor (string-length (string-replace lexeme "\n" "")))))]
-                                                  ;;(cons `,(tab_processor (string-length lexeme)) (PYTHONIA-OPTIMUS-LEXER test-input))))]
-   [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (PYTHONIA-OPTIMUS-LEXER test-input))
-                                     (cons `(ID ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input)))]
+                                                  (PYTHONIA-OPTIMUS-LEXER input-port)
+                                                  (tab_processor (string-length (string-replace lexeme "\n" "")))))]                                                
+   [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))
+                                     (cons `(ID ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port)))]
    [#\t (cons `(ERROR ,lexeme))]
-   [comment (PYTHONIA-OPTIMUS-LEXER test-input)]
-   [stringliteral (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [(:or floatnumber bytesliteral) (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [(:or decimalinteger bininteger) (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [hexinteger (cons `(LIT ,(string->number (string-replace lexeme "0" "#"))) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [imagnumber (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [punct (cons `(PUNCT ,lexeme) (PYTHONIA-OPTIMUS-LEXER test-input))]
-   [" " (PYTHONIA-OPTIMUS-LEXER test-input)]
+   [comment (PYTHONIA-OPTIMUS-LEXER input-port)]
+   [stringliteral (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:or floatnumber bytesliteral) (cons `(LIT ,(display lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:or decimalinteger bininteger) (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [hexinteger (cons `(LIT ,(string->symbol (let ([o (open-output-string)]) (display (replace-numid "#xc") o) (get-output-string o)))) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [imagnumber (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [punct (cons `(PUNCT ,lexeme) (cond [(equal? lexeme "(") (implicit-lj-lexer input-port)][else (PYTHONIA-OPTIMUS-LEXER input-port)]))]
+   [" " (PYTHONIA-OPTIMUS-LEXER input-port)]
    [(eof) `((ENDMARKER))]
    ))
+
+(define (replace-numid lexeme)
+  (string-replace (string-replace lexeme "0" "#") "o" "#"))
+  
+
+(define implicit-lj-lexer
+  (lexer
+   ["\n" (implicit-lj-lexer input-port)]
+   [" " (implicit-lj-lexer input-port)]
+   [(:or "]" ")" "}") (cons `(PUNCT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [punct (cons `(PUNCT ,lexeme) (implicit-lj-lexer input-port))]
+   [stringliteral (cons `(LIT ,(read (open-input-string lexeme))) (implicit-lj-lexer input-port))]
+   [comment (implicit-lj-lexer input-port)]
+   ))
+                         
 
 
 (define test-input (open-input-file "test.py" #:mode 'text))
