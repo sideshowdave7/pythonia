@@ -2,13 +2,14 @@
 
 (require parser-tools/lex)
 (require (prefix-in : parser-tools/lex-sre))
+(require racket/pretty)
 
 (define stack (list 0))
 
-(define (push x)
+(define (push x) 
   (set! stack (append (list x) stack )))
 
-(define (pop)
+(define (pop) 
   (define val (car stack))
   (set! stack (cdr stack))
   val
@@ -17,13 +18,12 @@
 (define (peek)
   (car stack))
 
-(define (tab_processor len)
+(define (tab_processor len) (print len)
   (cond 
   [(zero? (length stack)) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER test-input))]
   [(< (peek) len) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER test-input))]
   [(> (peek) len) (pop) (if (tab_pre_processor len) (cons `(DEDENT) (PYTHONIA-OPTIMUS-LEXER test-input)) (cons `(DEDENT) (tab_processor len)))]
-  [else null])
-  )
+  ))
 
 (define (tab_pre_processor len)
   (eq? (peek) len)
@@ -102,20 +102,20 @@
 
 (define PYTHONIA-OPTIMUS-LEXER
   (lexer
-   [(:: "\\" "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
-   [(:: (:or (:* "\n") (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (string-length (string-replace lexeme "\n" "")))
+   [(:: "\\" (:* space) "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
+   [(:: (:or (:* "\n") (:* whitespace) (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
                                                   (PYTHONIA-OPTIMUS-LEXER input-port)
-                                                  (tab_processor (string-length (string-replace lexeme "\n" "")))))]                                                
+                                                  (tab_processor (indent-length lexeme))))]                                                
    [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))
-                                     (cons `(ID ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port)))]
+                                     (cons `(ID ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port)))]
    [#\t (cons `(ERROR ,lexeme))]
    [comment (PYTHONIA-OPTIMUS-LEXER input-port)]
-   [stringliteral (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [(:or floatnumber bytesliteral) (cons `(LIT ,(display lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [(:or decimalinteger bininteger) (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [hexinteger (cons `(LIT ,(string->symbol (let ([o (open-output-string)]) (display (replace-numid "#xc") o) (get-output-string o)))) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [stringliteral (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [floatnumber (cons `(LIT ,(display lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:or decimalinteger bininteger) (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:or bytesliteral hexinteger) (cons `(LIT ,(replace-numid lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [imagnumber (cons `(LIT ,(read (open-input-string lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [punct (cons `(PUNCT ,lexeme) (cond [(equal? lexeme "(") (implicit-lj-lexer input-port)][else (PYTHONIA-OPTIMUS-LEXER input-port)]))]
+   [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (cond [(equal? lexeme "(") (implicit-lj-lexer input-port)][else (PYTHONIA-OPTIMUS-LEXER input-port)]))]
    [" " (PYTHONIA-OPTIMUS-LEXER input-port)]
    [(eof) `((ENDMARKER))]
    ))
@@ -129,11 +129,14 @@
    ["\n" (implicit-lj-lexer input-port)]
    [" " (implicit-lj-lexer input-port)]
    [(:or "]" ")" "}") (cons `(PUNCT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [punct (cons `(PUNCT ,lexeme) (implicit-lj-lexer input-port))]
+   [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (implicit-lj-lexer input-port))]
    [stringliteral (cons `(LIT ,(read (open-input-string lexeme))) (implicit-lj-lexer input-port))]
    [comment (implicit-lj-lexer input-port)]
    ))
                          
 
+(define (indent-length lexeme) (print lexeme)
+  (string-length (car (regexp-match #rx"\n[ ]*$" lexeme))))
+         
 
 (define test-input (open-input-file "test.py" #:mode 'text))
