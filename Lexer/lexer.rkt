@@ -4,7 +4,7 @@
 (require (prefix-in : parser-tools/lex-sre))
 (require racket/pretty)
 
-(define stack (list 0))
+(define stack (list 1))
 
 (define (push x) 
   (set! stack (append (list x) stack )))
@@ -18,7 +18,7 @@
 (define (peek)
   (car stack))
 
-(define (tab_processor len) (print len)
+(define (tab_processor len)
   (cond 
   [(zero? (length stack)) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER test-input))]
   [(< (peek) len) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER test-input))]
@@ -43,16 +43,19 @@
 
 (define-tokens jrr-tolkeins (NEWLINE INDENT DEDENT ID LIT KEYWORD PUNCT ENDMARKER))
 
+                           
+
+
 (define-lex-abbrevs
   (space " ")
   (digit (char-range "0" "9"))
   (alpha (:or (char-range #\A #\Z) (char-range #\a #\z)))
-  (id_start (:or alpha "_"))
-  (id_rest (:or digit alpha "_"))
+  (id_start (:or alphabetic "_"))
+  (id_rest (:or digit alphabetic "_"))
   (Lu (char-range #\A #\Z))
   (Ll (char-range #\a #\z))
   (integer (:or decimalinteger octinteger hexinteger bininteger))
-  (decimalinteger (:& nonzerodigit (:or (:* digit) (:+ "0"))))
+  (decimalinteger (:or (:: nonzerodigit (:* digit)) (:+ "0")))
   (nonzerodigit (char-range "1" "9"))
   (octinteger (:: "0" (:or "o" "O") (:+ octdigit)))
   (hexinteger (:: "0" (:or "x" "X") (:+ hexdigit)))
@@ -127,15 +130,23 @@
 (define implicit-lj-lexer
   (lexer
    ["\n" (implicit-lj-lexer input-port)]
+   [(:: "\\" (:* space) "\n")  (implicit-lj-lexer input-port)]
    [" " (implicit-lj-lexer input-port)]
+   [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (implicit-lj-lexer input-port))
+                                     (cons `(ID ,(string-append "\"" lexeme "\"")) (implicit-lj-lexer input-port)))]
    [(:or "]" ")" "}") (cons `(PUNCT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (implicit-lj-lexer input-port))]
    [stringliteral (cons `(LIT ,(read (open-input-string lexeme))) (implicit-lj-lexer input-port))]
    [comment (implicit-lj-lexer input-port)]
+   [stringliteral (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
+   [floatnumber (cons `(LIT ,(display lexeme)) (implicit-lj-lexer input-port))]
+   [(:or decimalinteger bininteger) (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
+   [(:or bytesliteral hexinteger) (cons `(LIT ,(replace-numid lexeme)) (implicit-lj-lexer input-port))]
+   [imagnumber (cons `(LIT ,(read (open-input-string lexeme))) (implicit-lj-lexer input-port))]
    ))
                          
 
-(define (indent-length lexeme) (print lexeme)
+(define (indent-length lexeme)
   (string-length (car (regexp-match #rx"\n[ ]*$" lexeme))))
          
 

@@ -1,5 +1,20 @@
-def f:
-   x=0xc
-   y="abc"
-   
-   z=4j
+#comment 1
+ #comment2
+
+def fact(y\
+):
+
+  if y == -1:
+    return 1.j
+
+  elif x ==0:
+
+    return 1
+  else:
+
+        return x* fact(x
+
+- 1)
+
+s = "foo\
+\\ \n\'\""
