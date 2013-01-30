@@ -20,9 +20,9 @@
 
 (define (tab_processor len)
   (cond 
-  [(zero? (length stack)) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER test-input))]
-  [(< (peek) len) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER test-input))]
-  [(> (peek) len) (pop) (if (tab_pre_processor len) (cons `(DEDENT) (PYTHONIA-OPTIMUS-LEXER test-input)) (cons `(DEDENT) (tab_processor len)))]
+  [(zero? (length stack)) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER (current-input-port)))]
+  [(< (peek) len) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER (current-input-port)))]
+  [(> (peek) len) (pop) (if (tab_pre_processor len) (cons `(DEDENT) (PYTHONIA-OPTIMUS-LEXER (current-input-port))) (cons `(DEDENT) (tab_processor len)))]
   ))
 
 (define (tab_pre_processor len)
@@ -101,9 +101,6 @@
 (define PYTHONIA-OPTIMUS-LEXER
   (lexer
    [(:: "\\" (:* space) "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
-   [(:: (:* (:* "\n") (:* whitespace) (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
-                                                  (PYTHONIA-OPTIMUS-LEXER input-port)
-                                                  (tab_processor (indent-length lexeme))))]                                                
    [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))
                                      (cons `(ID ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port)))]
    [#\t (cons `(ERROR ,lexeme))]
@@ -116,7 +113,11 @@
    [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (cond [(equal? lexeme "(") (implicit-lj-lexer input-port)]
                                                                  [else (PYTHONIA-OPTIMUS-LEXER input-port)]))]
    [" " (PYTHONIA-OPTIMUS-LEXER input-port)]
-   [(eof) `((ENDMARKER))]
+   [(:: (:* (:* "\n") (:* whitespace) (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
+                                                  (PYTHONIA-OPTIMUS-LEXER input-port)
+                                                  (tab_processor (indent-length lexeme))))]                                                
+
+   [(eof) (if (> (length stack) 1) (cons (eof-dedents) `(ENDMARKER)) `((ENDMARKER)))]
    ))
 
 
@@ -143,6 +144,11 @@
   
 (define (replace-imag lexeme)
   (string-replace (string-replace lexeme "j" "i") "J" "i"))
+
+(define (eof-dedents)
+  (pop)
+  (when (> 1 (length stack)) (cons '(DEDENT) (eof-dedents)) 
+))
   
 
 (define (stringliteral-removelinejoints lexeme)
@@ -154,7 +160,9 @@
 
 
 (define (run)
-  (for-each (lambda (arg) (pretty-display arg)) (PYTHONIA-OPTIMUS-LEXER test-input)))
+  (for-each (lambda (arg) (pretty-display arg)) (PYTHONIA-OPTIMUS-LEXER (current-input-port))))
 
 
-(define test-input (open-input-file "test.py" #:mode 'text))
+;;(define test-input (open-input-file "test.py" #:mode 'text))
+
+(run)
