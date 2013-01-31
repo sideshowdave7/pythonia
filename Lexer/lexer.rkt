@@ -64,11 +64,11 @@
   (hexdigit (:or digit (char-range "a" "f") (char-range "A" "F")))
   (bindigit (:or "0" "1"))
   (floatnumber (:or pointfloat exponentfloat))
-  (pointfloat (:: (:? intpart) (:or fraction (:: intpart "."))))
+  (pointfloat (:: (:? intpart) (:or fraction (:: intpart any-char))))
   (exponentfloat (:: (:or intpart pointfloat) exponent))
   (intpart (:+ digit))
   (fraction (:: "." (:+ digit)))
-  (exponent (:: (:or "e" "E") (:or "+" "-") (:+ digit)))
+  (exponent (:: (:or "e" "E") (:? (:or "+" "-")) (:+ digit)))
   (stringliteral (:: (:? stringprefix) (:or shortstring longstring)))
   (stringprefix (:or "r" "u" "R" "U"))
   (shortstring (:or (:: "'" (:* shortstringitem) "'") (:: "\"" (:* shortstringitem) "\"")))
@@ -108,7 +108,7 @@
    [comment (PYTHONIA-OPTIMUS-LEXER input-port)]
    [stringliteral  (cons `(LIT ,(stringify (string-literal lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [bytesliteral   (cons `(LIT ,(stringify (byte-literal lexeme)))   (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [floatnumber    (cons `(LIT ,(string->number lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [floatnumber    (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [decimalinteger (cons `(LIT ,(string->number lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [(:or bininteger hexinteger octinteger) (cons `(LIT ,(replace-numid lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [imagnumber (cons `(LIT ,(replace-imag lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
@@ -150,7 +150,7 @@
    [comment (implicit-lj-lexer input-port)]
    [stringliteral  (cons `(LIT ,(stringify (string-literal lexeme))) (implicit-lj-lexer input-port))]
    [bytesliteral   (cons `(LIT ,(stringify (byte-literal lexeme)))   (implicit-lj-lexer input-port))]
-   [floatnumber    (cons `(LIT ,(string->number lexeme)) (implicit-lj-lexer input-port))]
+   [floatnumber    (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
    [decimalinteger (cons `(LIT ,(string->number lexeme)) (implicit-lj-lexer input-port))]
    [(:or bininteger hexinteger octinteger) (cons `(LIT ,(replace-numid lexeme)) (implicit-lj-lexer input-port))]
    [imagnumber (cons `(LIT ,(replace-imag lexeme)) (implicit-lj-lexer input-port))]
