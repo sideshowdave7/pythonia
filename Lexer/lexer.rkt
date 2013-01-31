@@ -73,19 +73,19 @@
   (longstring (:or (:: "'''" (:* longstringitem) "'''") (:: "\"\"\"" (:* longstringitem) "\"\"\"")))
   (shortstringitem (:or shortstringchar stringescapeseq))
   (longstringitem (:or longstringchar stringescapeseq))
-  (shortstringchar (:~ (:or "\\" "\n" "\"")))
-  (longstringchar (char-complement "\\"))
+  (shortstringchar (:~ (:or #\\ "\n" #\")))
+  (longstringchar (char-complement #\\))
   (stringescapeseq (:: "\\" any-char))
   (bytesliteral (:: bytesprefix (:or shortbytes longbytes)))
   (bytesprefix (:or "b" "B" "br" "Br" "bR" "BR" "rb" "rB" "Rb" "RB"))
-  (shortbytes (:or(:: "'" shortbytesitem "'") (:: "\"" shortbytesitem "\"")))
-  (longbytes (:or(:: "'''" longbytesitem "'''") (:: "\"\"\"" longbytesitem "\"\"\"")))
+  (shortbytes (:or(:: "'" (:* shortbytesitem) "'") (:: "\"" (:* shortbytesitem) "\"")))
+  (longbytes (:or(:: "'''" (:* longbytesitem) "'''") (:: "\"\"\"" (:* longbytesitem) "\"\"\"")))
   (shortbytesitem (:or shortbyteschar bytesescapeseq))
   (longbytesitem (:or longbyteschar bytesescapeseq))
   (shortbyteschar (:~ (:or "\\" "\n" "\"")))
-  (longbyteschar (char-complement "\\"))
+  (longbyteschar (char-complement #\\))
   (bytesescapeseq (:: "\\" any-char))
-  (operator (:or "+"  "-"   "*"  "**" "//" "////" "%"
+  (operator (:or "+"  "-"   "*"  "**" "/" "//" "%"
                  "<<" ">>"  "&"  "|"  "^"  "~"    "<"
                  ">"  "<="  ">=" "==" "!="))
   (delimiter (:or "(" ")" "[" "]" "{" "}"
@@ -100,14 +100,14 @@
 
 (define PYTHONIA-OPTIMUS-LEXER
   (lexer
-   [(:: "\\" (:* space) "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
    [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))
                                      (cons `(ID ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port)))]
-   [#\t (cons `(ERROR ,lexeme))]
+   [#\t (cons `(ERROR "Unexpected tab"))]
    [comment (PYTHONIA-OPTIMUS-LEXER input-port)]
-   [stringliteral (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [floatnumber (cons `(LIT ,(display lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [(:or decimalinteger bytesliteral) (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [stringliteral  (cons `(LIT ,(stringify (string-literal lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [bytesliteral   (cons `(LIT ,(stringify (byte-literal lexeme)))   (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [floatnumber    (cons `(LIT ,(string->number lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [decimalinteger (cons `(LIT ,(string->number lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [(:or bininteger hexinteger octinteger) (cons `(LIT ,(replace-numid lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [imagnumber (cons `(LIT ,(replace-imag lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (cond [(equal? lexeme "(") (implicit-lj-lexer input-port)]
@@ -116,7 +116,7 @@
    [(:: (:* (:* "\n") (:* whitespace) (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
                                                   (PYTHONIA-OPTIMUS-LEXER input-port)
                                                   (tab_processor (indent-length lexeme))))]                                                
-
+   [(:: "\\" (:* space) "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
    [(eof) (if (> (length stack) 1) (cons (eof-dedents) `(ENDMARKER)) `((ENDMARKER)))]
    ))
 
@@ -130,20 +130,20 @@
                                      (cons `(ID ,(string-append "\"" lexeme "\"")) (implicit-lj-lexer input-port)))]
    [(:or "]" ")" "}") (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (implicit-lj-lexer input-port))]
-   [stringliteral (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
    [comment (implicit-lj-lexer input-port)]
-   [stringliteral (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
-   [floatnumber (cons `(LIT ,(display lexeme)) (implicit-lj-lexer input-port))]
-   [(:or decimalinteger bytesliteral) (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
+   [stringliteral  (cons `(LIT ,(stringify (string-literal lexeme))) (implicit-lj-lexer input-port))]
+   [bytesliteral   (cons `(LIT ,(stringify (byte-literal lexeme)))   (implicit-lj-lexer input-port))]
+   [floatnumber    (cons `(LIT ,(string->number lexeme)) (implicit-lj-lexer input-port))]
+   [decimalinteger (cons `(LIT ,(string->number lexeme)) (implicit-lj-lexer input-port))]
    [(:or bininteger hexinteger octinteger) (cons `(LIT ,(replace-numid lexeme)) (implicit-lj-lexer input-port))]
    [imagnumber (cons `(LIT ,(replace-imag lexeme)) (implicit-lj-lexer input-port))]
    ))
                          
 (define (replace-numid lexeme)
-  (string-replace (string-replace lexeme "0" "#" #:all? #f) "o" "#" #:all? #f))
+  (string-replace lexeme "0" "#" #:all? #f))
   
 (define (replace-imag lexeme)
-  (string-replace (string-replace lexeme "j" "i") "J" "i"))
+  (string->number (string-append "0+" (string-replace (string-replace lexeme "j" "i") "J" "i"))))
 
 (define (eof-dedents)
   (pop)
@@ -158,11 +158,47 @@
   (string-length (car (regexp-match #rx"\n[ ]*$" lexeme))))
 
 
-
-(define (run)
+(define (run-display)
   (for-each (lambda (arg) (pretty-display arg)) (PYTHONIA-OPTIMUS-LEXER (current-input-port))))
 
+(define (run-file filename)
+  (current-input-port (open-input-file filename))
+  (run-display))
 
-;;(define test-input (open-input-file "test.py" #:mode 'text))
+(define (run-string str)
+  (current-input-port (open-input-string str))
+  (run-display))
 
-(run)
+(define (sb-lit-process str)
+  (stringify (byte-literal str)))
+
+
+(define (stringify str)
+  (string-set! str 0 #\")
+  (string-set! str (- (string-length str) 1) #\")
+  str)
+
+(define (string-literal str)
+  (match (string-downcase (substring (byte-literalraw str) 0 1))
+    ["r" (substring (byte-literalraw str) 1)]
+    [_ (byte-literalraw str)]
+    ))
+
+(define (byte-literal str)
+  (match (string-downcase (substring (byte-literalraw str) 0 1))
+    ["b" (substring (byte-literalraw str) 1)]
+    [_ (byte-literalraw str)]
+    ))
+
+(define (byte-literalraw str)
+  (match (string-downcase (substring str 0 2))
+        ["rb" (string-raw (substring str 2))]
+        ["br" (string-raw (substring str 2))]
+        [_ (string-raw str)]
+    ))
+  
+
+(define (string-raw str)
+  (string-replace str "\\" "\\\\"))
+
+(run-file "test.py")
