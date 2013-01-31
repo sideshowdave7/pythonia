@@ -1,0 +1,4 @@
+
+array = [ 'implied', \
+          'line',    \
+          'continuation' ]

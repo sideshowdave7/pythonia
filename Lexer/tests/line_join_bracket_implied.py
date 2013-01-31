@@ -1,0 +1,7 @@
+
+array = [ 'implied',
+          'line',
+          'continuation' ]
+          
+
+
