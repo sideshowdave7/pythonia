@@ -116,12 +116,13 @@
                                                                  [(equal? lexeme "[") (implicit-lj-increment input-port)]
                                                                  [(equal? lexeme "{") (implicit-lj-increment input-port)]
                                                                  [else (PYTHONIA-OPTIMUS-LEXER input-port)]))]
-   [" " (PYTHONIA-OPTIMUS-LEXER input-port)]
+  
    [(:: (:* (:* "\n") (:* whitespace) (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
                                                   (PYTHONIA-OPTIMUS-LEXER input-port)
                                                   (tab_processor (indent-length lexeme))))]                                                
    [(:: "\\" (:* space) "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
    [(eof) (if (> (length stack) 1) (cons (eof-dedents) `(ENDMARKER)) `((ENDMARKER)))]
+   [whitespace (PYTHONIA-OPTIMUS-LEXER input-port)]
    ))
 
 (define (implicit-lj-increment port)
@@ -170,7 +171,9 @@
   
 
 (define (stringliteral-removelinejoints lexeme)
-   (regexp-match #rx"\\ *\n" lexeme))
+   (read (open-input-string lexeme)))
+  
+  ;;(regexp-replace #rx"\n" (read (open-input-string lexeme)) ""))
 
 (define (indent-length lexeme)
   (string-length (car (regexp-match #rx"\n[ ]*$" lexeme))))
@@ -190,8 +193,10 @@
 (define (sb-lit-process str)
   (stringify (byte-literal str)))
 
-
 (define (stringify str)
+  (stringme (regexp-replace #rx"\"\"\"$" (regexp-replace #rx"^\"\"\"" (regexp-replace #rx"'''$" (regexp-replace #rx"^'''" str "\"") "\"") "\"") "\"")))
+
+(define (stringme str)
   (string-set! str 0 #\")
   (string-set! str (- (string-length str) 1) #\")
   str)
@@ -212,7 +217,7 @@
   (match (string-downcase (substring str 0 2))
         ["rb" (string-raw (substring str 2))]
         ["br" (string-raw (substring str 2))]
-        [_ (string-raw str)]
+        [_ str]
     ))
   
 
