@@ -20,11 +20,10 @@
 (define (peek)
   (car stack))
 
-(define (tab_processor len)
+(define (tab_processor len port)
   (cond 
-  [(zero? (length stack)) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER (current-input-port)))]
-  [(< (peek) len) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER (current-input-port)))]
-  [(> (peek) len) (pop) (if (tab_pre_processor len) (cons `(DEDENT) (PYTHONIA-OPTIMUS-LEXER (current-input-port))) (cons `(DEDENT) (tab_processor len)))]
+  [(< (peek) len) (push len) (cons `(INDENT) (PYTHONIA-OPTIMUS-LEXER port))]
+  [(> (peek) len) (pop) (if (tab_pre_processor len) (cons `(DEDENT) (PYTHONIA-OPTIMUS-LEXER port)) (cons `(DEDENT) (tab_processor len port)))]
   ))
 
 (define (tab_pre_processor len)
@@ -50,8 +49,8 @@
   (space " ")
   (digit (char-range "0" "9"))
   (alpha (:or (char-range #\A #\Z) (char-range #\a #\z)))
-  (id_start (:or alphabetic "_"))
-  (id_rest (:or digit alphabetic "_"))
+  (id_start (:or alpha "_"))
+  (id_rest (:or digit alpha "_"))
   (Lu (char-range #\A #\Z))
   (Ll (char-range #\a #\z))
   (integer (:or decimalinteger octinteger hexinteger bininteger))
@@ -88,7 +87,7 @@
   (longbyteschar (char-complement #\\))
   (bytesescapeseq (:: "\\" any-char))
   (operator (:or "+"  "-"   "*"  "**" "/" "//" "%"
-                 "<<" ">>"  "&"  "|"  "^"  "~"    "<"
+                 "<<" ">>"  "&"  "|"  "^"  "~" "<"
                  ">"  "<="  ">=" "==" "!="))
   (delimiter (:or "(" ")" "[" "]" "{" "}"
                   "," ":" "." ";" "@" "="
@@ -100,63 +99,46 @@
   (comment (:: "#" (:* allbutnewline) "\n"))
   )
 
+(define ilj-level 0)
+
+(define lj-lexer 
+  (lexer
+   ["\n" (if (equal? ilj-level 0) (string-append lexeme (lj-lexer input-port)) (string-append "" (lj-lexer input-port)))]
+   [(:or "(" "[" "{") (begin (+ 1 ilj-level) (string-append lexeme (lj-lexer input-port)))]
+   [(:: "\\" "\n") (string-append "" (lj-lexer input-port))]
+   [any-char (string-append lexeme (lj-lexer input-port))]
+   [(eof) ""]
+   ))
+
+
 (define PYTHONIA-OPTIMUS-LEXER
   (lexer
    [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))
                                      (cons `(ID ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port)))]
    [#\t (cons `(ERROR "Unexpected tab"))]
    [comment (PYTHONIA-OPTIMUS-LEXER input-port)]
+   [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [stringliteral  (cons `(LIT ,(stringify (string-literal lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [bytesliteral   (cons `(LIT ,(stringify (byte-literal lexeme)))   (PYTHONIA-OPTIMUS-LEXER input-port))]
    [floatnumber    (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [decimalinteger (cons `(LIT ,(string->number lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [(:or bininteger hexinteger octinteger) (cons `(LIT ,(replace-numid lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [imagnumber (cons `(LIT ,(replace-imag lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (cond [(equal? lexeme "(") (implicit-lj-increment input-port)]
-                                                                 [(equal? lexeme "[") (implicit-lj-increment input-port)]
-                                                                 [(equal? lexeme "{") (implicit-lj-increment input-port)]
-                                                                 [else (PYTHONIA-OPTIMUS-LEXER input-port)]))]
+
   
    [(:: (:* (:* "\n") (:* whitespace) (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
                                                   (PYTHONIA-OPTIMUS-LEXER input-port)
-                                                  (tab_processor (indent-length lexeme))))]                                                
+                                                  (tab_processor (indent-length lexeme) input-port)))]                                                
    [(:: "\\" (:* space) "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
    [(eof) (if (> (length stack) 1) (cons (eof-dedents) `(ENDMARKER)) `((ENDMARKER)))]
-   [whitespace (PYTHONIA-OPTIMUS-LEXER input-port)]
-   ))
 
-(define (implicit-lj-increment port)
-  (set! implicit-lj-level (+ 1 implicit-lj-level))
-  (implicit-lj-lexer port))
+   [whitespace (PYTHONIA-OPTIMUS-LEXER input-port)]
+
+   ))
 
 (define (decrement-lj-level)
   (set! implicit-lj-level (- implicit-lj-level 1))
   implicit-lj-level)
-
-(define implicit-lj-lexer
-  (lexer
-   ["\n" (implicit-lj-lexer input-port)]
-   [#\t (cons `(ERROR "Unexpected tab"))][#\t (cons `(ERROR "Unexpected tab"))]
-   [(:: "\\" (:* space) "\n")  (implicit-lj-lexer input-port)]
-   [" " (implicit-lj-lexer input-port)]
-   [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (implicit-lj-lexer input-port))
-                                     (cons `(ID ,(string-append "\"" lexeme "\"")) (implicit-lj-lexer input-port)))]
-   [(:or "]" ")" "}") (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (cond [(equal? (decrement-lj-level) 0) (PYTHONIA-OPTIMUS-LEXER input-port)]
-                                                                             [else (implicit-lj-lexer input-port)]))]
-                                                                                 
-   [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (cond [(equal? lexeme "(") (implicit-lj-increment input-port)]
-                                                                 [(equal? lexeme "[") (implicit-lj-increment input-port)]
-                                                                 [(equal? lexeme "{") (implicit-lj-increment input-port)]
-                                                                 [else (implicit-lj-lexer input-port)]))]
-   [comment (implicit-lj-lexer input-port)]
-   [stringliteral  (cons `(LIT ,(stringify (string-literal lexeme))) (implicit-lj-lexer input-port))]
-   [bytesliteral   (cons `(LIT ,(stringify (byte-literal lexeme)))   (implicit-lj-lexer input-port))]
-   [floatnumber    (cons `(LIT ,lexeme) (implicit-lj-lexer input-port))]
-   [decimalinteger (cons `(LIT ,(string->number lexeme)) (implicit-lj-lexer input-port))]
-   [(:or bininteger hexinteger octinteger) (cons `(LIT ,(replace-numid lexeme)) (implicit-lj-lexer input-port))]
-   [imagnumber (cons `(LIT ,(replace-imag lexeme)) (implicit-lj-lexer input-port))]
-   [(eof) `(ERROR "Unexpected eof")]
-   ))
                          
 (define (replace-numid lexeme)
   (string-replace lexeme "0" "#" #:all? #f))
@@ -180,7 +162,7 @@
 
 
 (define (run-display)
-  (for-each (lambda (arg) (pretty-display arg)) (PYTHONIA-OPTIMUS-LEXER (current-input-port))))
+  (for-each (lambda (arg) (pretty-display arg)) (PYTHONIA-OPTIMUS-LEXER (open-input-string (lj-lexer (current-input-port))))))
 
 (define (run-file filename)
   (current-input-port (open-input-file filename))
@@ -225,3 +207,8 @@
   (string-replace str "\\" "\\\\"))
 
 (run-display)
+
+(define (run-testlj filename)
+  (current-input-port (open-input-file filename))
+  (display (lj-lexer (current-input-port))))
+            
