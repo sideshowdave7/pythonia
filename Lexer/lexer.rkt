@@ -63,22 +63,27 @@
   (hexdigit (:or digit (char-range "a" "f") (char-range "A" "F")))
   (bindigit (:or "0" "1"))
   (floatnumber (:or pointfloat exponentfloat))
-  (pointfloat (:: (:? intpart) (:or fraction (:: intpart any-char))))
+  (pointfloat (:: (:? intpart) (:or fraction (:: intpart "."))))
   (exponentfloat (:: (:or intpart pointfloat) exponent))
   (intpart (:+ digit))
   (fraction (:: "." (:+ digit)))
   (exponent (:: (:or "e" "E") (:? (:or "+" "-")) (:+ digit)))
   (stringliteral (:: (:? stringprefix) (:or shortstring longstring)))
   (stringprefix (:or "r" "u" "R" "U"))
-  (shortstring (:or (:: "'" (:* shortstringitem) "'") (:: "\"" (:* shortstringitem) "\"")))
+  (normalprefix (:or "u" "U" "b" "B"))
+  (unicodestringprefix (:or "U" "u"))
+  (shortstring (:or (:: "'" (:* shortstringsingleitem) "'") (:: "\"" (:* shortstringitem) "\"")))
   (longstring (:or (:: "'''" (:* longstringitem) "'''") (:: "\"\"\"" (:* longstringitem) "\"\"\"")))
   (shortstringitem (:or shortstringchar stringescapeseq))
+  (shortstringsingleitem (:or shortstringsinglechar stringescapeseq))
   (longstringitem (:or longstringchar stringescapeseq))
   (shortstringchar (:~ (:or #\\ "\n" #\")))
+  (shortstringsinglechar (:~ (:or #\\ "\n" #\')))
   (longstringchar (char-complement #\\))
   (stringescapeseq (:: "\\" any-char))
-  (bytesliteral (:: bytesprefix (:or shortbytes longbytes)))
-  (bytesprefix (:or "b" "B" "br" "Br" "bR" "BR" "rb" "rB" "Rb" "RB"))
+  ;;(bytesliteral (:: bytesprefix (:or shortbytes longbytes)))
+  (rawbytesprefix (:or "br" "Br" "bR" "BR" "rb" "rB" "Rb" "RB"))
+  (rawprefix (:or "r" "R" rawbytesprefix))
   (shortbytes (:or(:: "'" (:* shortbytesitem) "'") (:: "\"" (:* shortbytesitem) "\"")))
   (longbytes (:or(:: "'''" (:* longbytesitem) "'''") (:: "\"\"\"" (:* longbytesitem) "\"\"\"")))
   (shortbytesitem (:or shortbyteschar bytesescapeseq))
@@ -118,8 +123,20 @@
    [#\t (cons `(ERROR "Unexpected tab"))]
    [comment (PYTHONIA-OPTIMUS-LEXER input-port)]
    [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [stringliteral  (cons `(LIT ,(stringify (string-literal lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [bytesliteral   (cons `(LIT ,(stringify (byte-literal lexeme)))   (PYTHONIA-OPTIMUS-LEXER input-port))]
+   ;;RAW STRINGS
+   [(:: rawprefix "'''")    (cons `(LIT ,(string-append "\"" (raw-singlequote-long-lex input-port) "\""))  (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:: rawprefix "\"\"\"") (cons `(LIT ,(string-append "\"" (raw-doublequote-long-lex input-port) "\""))  (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:: rawprefix "'")      (cons `(LIT ,(string-append "\"" (raw-singlequote-short-lex input-port) "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:: rawprefix #\")      (cons `(LIT ,(string-append "\"" (raw-doublequote-short-lex input-port) "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   ;;NORMAL
+   [(:: (:? normalprefix) "'''")    (cons `(LIT ,(string-append "\"" (singlequote-long-lex input-port) "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:: (:? normalprefix) "\"\"\"") (cons `(LIT ,(string-append "\"" (doublequote-long-lex input-port) "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:: (:? normalprefix) "'")      (cons `(LIT ,(string-append "\"" (singlequote-short-lex input-port) "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [(:: (:? normalprefix) #\")      (cons `(LIT ,(string-append "\"" (doublequote-short-lex input-port) "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
+
+   
+   ;;[stringliteral  (cons `(LIT ,(stringify (string-literal lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   ;;[bytesliteral   (cons `(LIT ,(stringify (byte-literal lexeme)))   (PYTHONIA-OPTIMUS-LEXER input-port))]
    [floatnumber    (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [decimalinteger (cons `(LIT ,(string->number lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [(:or bininteger hexinteger octinteger) (cons `(LIT ,(replace-numid lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
@@ -135,6 +152,74 @@
    [whitespace (PYTHONIA-OPTIMUS-LEXER input-port)]
 
    ))
+
+;;STRING LITERAL LEXERS
+;;NORMAL (NON-RAW)
+(define singlequote-short-lex
+  (lexer
+   ["'" ""]
+   [shortstringsingleitem (string-append lexeme (singlequote-short-lex input-port))]
+   [(eof) "(ERROR \"unexpected eof"]
+   ))
+
+(define doublequote-short-lex
+  (lexer
+   [#\" ""]
+   [shortstringitem (string-append lexeme (doublequote-short-lex input-port))]
+   [(eof) "(ERROR \"unexpected eof"]
+   ))
+
+
+(define singlequote-long-lex
+  (lexer
+   ["'''" ""]
+   ["\n"           (string-append ""     (singlequote-long-lex input-port))]
+   [longstringitem (string-append lexeme (singlequote-long-lex input-port))]
+   [(eof) "(ERROR \"unexpected eof"]
+   ))
+
+(define doublequote-long-lex
+  (lexer
+   ["\"\"\"" ""]
+   ["\n"           (string-append ""     (doublequote-long-lex input-port))]
+   [longstringitem (string-append lexeme (doublequote-long-lex input-port))]
+   [(eof) "(ERROR \"unexpected eof"]
+   ))
+
+;;RAW STRING LEXERS
+(define raw-singlequote-short-lex
+  (lexer
+   ["'" ""]
+   [shortstringsingleitem (string-append (string-raw lexeme) (raw-singlequote-short-lex input-port))]
+   [(eof) "(ERROR \"unexpected eof"]
+   ))
+
+(define raw-doublequote-short-lex
+  (lexer
+   [#\" ""]
+   [shortstringitem (string-append (string-raw lexeme) (raw-doublequote-short-lex input-port))]
+   [any-char "(ERROR \"unexpected char"]
+   [(eof) "(ERROR \"unexpected eof"]
+   ))
+
+(define raw-singlequote-long-lex
+  (lexer
+   ["'''" ""]
+   ["\n"           (string-append ""                  (raw-singlequote-long-lex input-port))]
+   [longstringitem (string-append (string-raw lexeme) (raw-singlequote-long-lex input-port))]
+   [(eof) "(ERROR \"unexpected eof"]
+   ))
+
+(define raw-doublequote-long-lex
+  (lexer
+   ["\"\"\"" ""]
+   ["\n"           (string-append ""                  (raw-doublequote-long-lex input-port))]
+   [longstringitem (string-append (string-raw lexeme) (raw-doublequote-long-lex input-port))]
+   [(eof) "(ERROR \"unexpected eof"]
+   ))
+
+
+
 
 (define (decrement-lj-level)
   (set! implicit-lj-level (- implicit-lj-level 1))
@@ -162,6 +247,7 @@
 
 
 (define (run-display)
+  ;;(display (lj-lexer (current-input-port)))
   (for-each (lambda (arg) (pretty-display arg)) (PYTHONIA-OPTIMUS-LEXER (open-input-string (lj-lexer (current-input-port))))))
 
 (define (run-file filename)
@@ -172,22 +258,9 @@
   (current-input-port (open-input-string str))
   (run-display))
 
-(define (sb-lit-process str)
-  (stringify (byte-literal str)))
 
-(define (stringify str)
-  (stringme (regexp-replace #rx"\"\"\"$" (regexp-replace #rx"^\"\"\"" (regexp-replace #rx"'''$" (regexp-replace #rx"^'''" str "\"") "\"") "\"") "\"")))
-
-(define (stringme str)
-  (string-set! str 0 #\")
-  (string-set! str (- (string-length str) 1) #\")
-  str)
-
-(define (string-literal str)
-  (match (string-downcase (substring (byte-literalraw str) 0 1))
-    ["r" (substring (byte-literalraw str) 1)]
-    [_ (byte-literalraw str)]
-    ))
+(define (string-raw str)
+  (string-replace str "\\" "\\\\"))
 
 (define (byte-literal str)
   (match (string-downcase (substring (byte-literalraw str) 0 1))
@@ -201,10 +274,9 @@
         ["br" (string-raw (substring str 2))]
         [_ str]
     ))
-  
 
-(define (string-raw str)
-  (string-replace str "\\" "\\\\"))
+;(define (stringify str)
+;  (stringme (regexp-replace #rx"\"\"\"$" (regexp-replace #rx"^\"\"\"" (regexp-replace #rx"'''$" (regexp-replace #rx"^'''" str "\"") "\"") "\"") "\"")))
 
 (run-display)
 
