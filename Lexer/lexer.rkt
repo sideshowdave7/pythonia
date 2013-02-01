@@ -76,9 +76,14 @@
   (longstring (:or (:: "'''" (:* longstringitem) "'''") (:: "\"\"\"" (:* longstringitem) "\"\"\"")))
   (shortstringitem (:or shortstringchar stringescapeseq))
   (shortstringsingleitem (:or shortstringsinglechar stringescapeseq))
+  (shortrawstringsingleitem shortrawstringsinglechar)
   (longstringitem (:or longstringchar stringescapeseq))
+  (shortrawstringitem shortrawstringchar)
+  (longrawstringitem any-char)
   (shortstringchar (:~ (:or #\\ "\n" #\")))
+  (shortrawstringchar (:~ (:or "\n" #\")))
   (shortstringsinglechar (:~ (:or #\\ "\n" #\')))
+  (shortrawstringsinglechar (:~ (:or "\n" #\')))
   (longstringchar (char-complement #\\))
   (stringescapeseq (:: "\\" any-char))
   ;;(bytesliteral (:: bytesprefix (:or shortbytes longbytes)))
@@ -190,14 +195,14 @@
 (define raw-singlequote-short-lex
   (lexer
    ["'" ""]
-   [shortstringsingleitem (string-append (string-raw lexeme) (raw-singlequote-short-lex input-port))]
+   [shortrawstringsingleitem (string-append (string-raw lexeme) (raw-singlequote-short-lex input-port))]
    [(eof) "(ERROR \"unexpected eof"]
    ))
 
 (define raw-doublequote-short-lex
   (lexer
    [#\" ""]
-   [shortstringitem (string-append (string-raw lexeme) (raw-doublequote-short-lex input-port))]
+   [shortrawstringitem (string-append (string-raw lexeme) (raw-doublequote-short-lex input-port))]
    [any-char "(ERROR \"unexpected char"]
    [(eof) "(ERROR \"unexpected eof"]
    ))
@@ -206,7 +211,7 @@
   (lexer
    ["'''" ""]
    ["\n"           (string-append ""                  (raw-singlequote-long-lex input-port))]
-   [longstringitem (string-append (string-raw lexeme) (raw-singlequote-long-lex input-port))]
+   [longrawstringitem (string-append (string-raw lexeme) (raw-singlequote-long-lex input-port))]
    [(eof) "(ERROR \"unexpected eof"]
    ))
 
@@ -214,7 +219,7 @@
   (lexer
    ["\"\"\"" ""]
    ["\n"           (string-append ""                  (raw-doublequote-long-lex input-port))]
-   [longstringitem (string-append (string-raw lexeme) (raw-doublequote-long-lex input-port))]
+   [longrawstringitem (string-append (string-raw lexeme) (raw-doublequote-long-lex input-port))]
    [(eof) "(ERROR \"unexpected eof"]
    ))
 
