@@ -105,16 +105,24 @@
                   "&=" "|=" "^=" ">>=" "<<=" "**="))
   (imagnumber (:: (:or floatnumber intpart) (:or "j" "J")))
   (punct (:or operator delimiter))
-  (allbutnewline (:~ "\n"))
+  (newlines (:or "\n" "\f" "\r"))
+  (allbutnewline (:~ newlines))
   (comment (:: "#" (:* allbutnewline) "\n"))
   )
 
 (define ilj-level 0)
 
+(define (inc-ilj-level)
+  (set! ilj-level (+ 1 ilj-level)))
+
+(define (dec-ilj-level)
+  (set! ilj-level (- ilj-level 1)))
+
 (define lj-lexer 
   (lexer
    ["\n" (if (equal? ilj-level 0) (string-append lexeme (lj-lexer input-port)) (string-append "" (lj-lexer input-port)))]
-   [(:or "(" "[" "{") (begin (+ 1 ilj-level) (string-append lexeme (lj-lexer input-port)))]
+   [(:or "(" "[" "{") (begin (inc-ilj-level) (string-append lexeme (lj-lexer input-port)))]
+   [(:or ")" "]" "}") (begin (dec-ilj-level) (string-append lexeme (lj-lexer input-port)))]
    [(:: "\\" "\n") (string-append "" (lj-lexer input-port))]
    [any-char (string-append lexeme (lj-lexer input-port))]
    [(eof) ""]
@@ -126,7 +134,7 @@
    [(:: id_start (:* id_rest))   (if (member lexeme python-keywords) (cons `(KEYWORD ,(string->symbol lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))
                                      (cons `(ID ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port)))]
    [#\t (cons `(ERROR "Unexpected tab"))]
-   [comment (PYTHONIA-OPTIMUS-LEXER input-port)]
+  
    [punct (cons `(PUNCT ,(string-append "\"" lexeme "\"")) (PYTHONIA-OPTIMUS-LEXER input-port))]
    ;;RAW STRINGS
    [(:: rawprefix "'''")    (cons `(LIT ,(string-append "\"" (raw-singlequote-long-lex input-port) "\""))  (PYTHONIA-OPTIMUS-LEXER input-port))]
@@ -142,19 +150,21 @@
    
    ;;[stringliteral  (cons `(LIT ,(stringify (string-literal lexeme))) (PYTHONIA-OPTIMUS-LEXER input-port))]
    ;;[bytesliteral   (cons `(LIT ,(stringify (byte-literal lexeme)))   (PYTHONIA-OPTIMUS-LEXER input-port))]
-   [floatnumber    (cons `(LIT ,lexeme) (PYTHONIA-OPTIMUS-LEXER input-port))]
+   [floatnumber    (cons `(LIT ,(float-proc lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [decimalinteger (cons `(LIT ,(string->number lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [(:or bininteger hexinteger octinteger) (cons `(LIT ,(replace-numid lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
    [imagnumber (cons `(LIT ,(replace-imag lexeme)) (PYTHONIA-OPTIMUS-LEXER input-port))]
 
-  
-   [(:: (:* (:* "\n") (:* whitespace) (:* comment)) "\n" (:* space))  (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
+   [(:: (:* newlines) comment (:* space)) (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
+                                                  (PYTHONIA-OPTIMUS-LEXER input-port)
+                                                  (tab_processor (indent-length lexeme) input-port)))]  
+   [(:: (:* (:* newlines) (:* whitespace) (:* comment)) newlines (:* space)) (cons `(NEWLINE) `, (if (tab_pre_processor (indent-length lexeme))
                                                   (PYTHONIA-OPTIMUS-LEXER input-port)
                                                   (tab_processor (indent-length lexeme) input-port)))]                                                
-   [(:: "\\" (:* space) "\n")  (PYTHONIA-OPTIMUS-LEXER input-port)]
    [(eof) (if (> (length stack) 1) (cons (eof-dedents) `(ENDMARKER)) `((ENDMARKER)))]
 
    [whitespace (PYTHONIA-OPTIMUS-LEXER input-port)]
+   [comment (PYTHONIA-OPTIMUS-LEXER input-port)]
 
    ))
 
@@ -167,9 +177,13 @@
    [(eof) "(ERROR \"unexpected eof"]
    ))
 
+(define (float-proc lexeme)
+  (if (equal? (string-ref lexeme (- (string-length lexeme) 1)) #\.) (string-append lexeme "0") lexeme))
+
 (define doublequote-short-lex
   (lexer
    [#\" ""]
+   [#\'             (string-append "\\'"  (doublequote-short-lex input-port))]
    [shortstringitem (string-append lexeme (doublequote-short-lex input-port))]
    [(eof) "(ERROR \"unexpected eof"]
    ))
@@ -178,16 +192,19 @@
 (define singlequote-long-lex
   (lexer
    ["'''" ""]
-   ["\n"           (string-append ""     (singlequote-long-lex input-port))]
-   [longstringitem (string-append lexeme (singlequote-long-lex input-port))]
+   [#\"            (string-append "\\\""      (singlequote-long-lex input-port))]     
+   ["\n"           (string-append "\\n"       (singlequote-long-lex input-port))]
+   [longstringitem (string-append lexeme      (singlequote-long-lex input-port))]
    [(eof) "(ERROR \"unexpected eof"]
    ))
 
 (define doublequote-long-lex
   (lexer
    ["\"\"\"" ""]
-   ["\n"           (string-append ""     (doublequote-long-lex input-port))]
-   [longstringitem (string-append lexeme (doublequote-long-lex input-port))]
+   [#\"            (string-append "\\\""      (doublequote-long-lex input-port))]
+   [#\'            (string-append "\\'"       (doublequote-long-lex input-port))]
+   ["\n"           (string-append "\\n"       (doublequote-long-lex input-port))]
+   [longstringitem (string-append lexeme      (doublequote-long-lex input-port))]
    [(eof) "(ERROR \"unexpected eof"]
    ))
 
@@ -210,7 +227,7 @@
 (define raw-singlequote-long-lex
   (lexer
    ["'''" ""]
-   ["\n"           (string-append ""                  (raw-singlequote-long-lex input-port))]
+   ["\n"           (string-append "\\n"                  (raw-singlequote-long-lex input-port))]
    [longrawstringitem (string-append (string-raw lexeme) (raw-singlequote-long-lex input-port))]
    [(eof) "(ERROR \"unexpected eof"]
    ))
@@ -224,6 +241,8 @@
    ))
 
 
+(define (strip-newlines lst)
+  (if (equal? (car lst) '(NEWLINE)) (cdr lst) lst))
 
 
 (define (decrement-lj-level)
@@ -252,8 +271,8 @@
 
 
 (define (run-display)
-  ;;(display (lj-lexer (current-input-port)))
-  (for-each (lambda (arg) (pretty-display arg)) (PYTHONIA-OPTIMUS-LEXER (open-input-string (lj-lexer (current-input-port))))))
+  ;;(print (lj-lexer (current-input-port)))
+  (for-each (lambda (arg) (pretty-display arg)) (strip-newlines (PYTHONIA-OPTIMUS-LEXER (open-input-string (lj-lexer (current-input-port)))))))
 
 (define (run-file filename)
   (current-input-port (open-input-file filename))
