@@ -1,6 +1,7 @@
 Univeristy of Utah
 Spring 2013 
 CS 5460 (Compilers)
+February 1, 2013
 
 Project 1: Python Lexer
 
@@ -30,9 +31,13 @@ Running test suite:
 
       make test
 
+Cleaning up:
+
+      make clean
 
 
-2. Expected Behaviour:
+
+2. Lexer Behaviour:
 
        Tabs:             The lexer handles tabs by assuming they are an error, and an error token is immediately generated stating so.
        Unicode:          The lexer currently does not have support for input of unicode.
@@ -41,7 +46,7 @@ Running test suite:
                          Number literals including floating point, integer, binary, octal, hexadecimal, and imaginary numbers are processed into racket-compatible values.  
                          String and byte literals are both treated the same (both become string objects in racket, although this behaviour could be easily modified for convenience in creating the parser).
                          String and byte literals are allowed to have both raw, and non-raw versions (raw when preceded by r) according to the python lexical specification.  The lexer handles raw strings appropiately by treating the backslash "\" as a charactar and not an escape sequence.
-                         
+                         If an eof is found inside a string literal, and error token is generated stating so. 
 
        INDENTS/DEDENTS:  All indents and dedents should behave as expected with one exception: 
                                     An indent will be generated in the case of a line explicity joined with a following line with whitespace before another token.  Pylex does not perform this way (not sure if this within Pythons lexical specification as the document is ambigious.
@@ -58,8 +63,9 @@ Running test suite:
  
        Backslash:        The backslash "\", is treated differently depending on its context, according Python lexical specification.  It is used as an explicit line join outside of raw strings and comments.  Otherwise it joins two physical lines.  No newline is generated in the case of an explicit line join.
 
-       Noted 'quirks':   
+       Invalid chars:    Misplaced charactars such as "?" "`" "$" etc. generate an ERROR token.
 
+       Noted quirks:     All known quirks with running the lexer are discussed in the testing section below.
 
 
 3. Included test notes
@@ -102,7 +108,7 @@ Running test suite:
 4. Lexer Implementation notes:
 	Lexers:
 		PYTHONIA-OPTIMUS-LEXER:
-			This is the core lexer. HAndles calling into the other lexers, as well as a lot of the simple and straightforward lexing.  
+			This is the core lexer. Handles calling into the other lexers, as well as a lot of the simple and straightforward lexing.  
 
 		luth-lexer:
 			Handles the edge case of having an indent on the first line.
@@ -130,6 +136,10 @@ Running test suite:
 	Helper functions:
 		tab_processor:
 			uses the stack to track indent levels. It was necessary to have the tab processor call PYTHONIA-OPTIMUS-LEXER, allowing us to cons in the indents and dedents without creating a sublist. 
+
+                ilj-comment and ilj-stringliteral:
+ 
+                        keep track of comment, or string context in lj-lexer
 
 		ilj-*:
 			implicit line join methods used for tracking how far in we are, and when to return from the lexer;
