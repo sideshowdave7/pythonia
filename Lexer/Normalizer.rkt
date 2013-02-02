@@ -10,7 +10,7 @@
   (printf "DEDENT\n"))
 
 (define (ID name)
-  (printf "LIT ~v\n" name))
+  (printf "ID ~v\n" name))
 
 (define (LIT value)
   (printf "LIT ~v\n" value))

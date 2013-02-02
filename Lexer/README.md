@@ -106,6 +106,7 @@ Cleaning up:
                    
 
 4. Lexer Implementation notes:
+        
 	Lexers:
 		PYTHONIA-OPTIMUS-LEXER:
 			This is the core lexer. Handles calling into the other lexers, as well as a lot of the simple and straightforward lexing.  
@@ -134,7 +135,8 @@ Cleaning up:
 
 
 	Helper functions:
-		tab_processor:
+		
+                tab_processor:
 			uses the stack to track indent levels. It was necessary to have the tab processor call PYTHONIA-OPTIMUS-LEXER, allowing us to cons in the indents and dedents without creating a sublist. 
 
                 ilj-comment and ilj-stringliteral:
