@@ -250,7 +250,7 @@
   (lexer
    ["'''" ""]
    [#\"                (string-append "\\\""      (singlequote-long-lex input-port))]     
-   [newlines           (string-append "\\n"       (singlequote-long-lex input-port))]
+   [newlines           (string-append (escape-new-lines lexeme) (singlequote-long-lex input-port))]
    [longstringitem (string-append lexeme          (singlequote-long-lex input-port))]
    [(eof) "(ERROR \"unexpected eof"]
    ))
@@ -260,7 +260,7 @@
    ["\"\"\"" ""]
    [#\"            (string-append "\\\""      (doublequote-long-lex input-port))]
    [#\'            (string-append "\\'"       (doublequote-long-lex input-port))]
-   [newlines       (string-append "\\n"       (doublequote-long-lex input-port))]
+   [newlines       (string-append (escape-new-lines lexeme) (doublequote-long-lex input-port))]
    [longstringitem (string-append lexeme      (doublequote-long-lex input-port))]
    [(eof) "(ERROR \"unexpected eof"]
    ))
@@ -338,6 +338,10 @@
 
 (define (string-raw str)
   (string-replace str "\\" "\\\\"))
+
+(define (escape-new-lines line)
+  (string-replace (string-replace (string-replace line "\n" "\\n") "\r" "\\r" ) "\f" "\\f")
+  )
 
 (run-display)
 
