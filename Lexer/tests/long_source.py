@@ -373,12 +373,7 @@ class ExtremeFinderCycle(ExtremeFinderSimple):
 
 
     def __call__(self, transform_xy, x1, y1, x2, y2):
-        """
-        get extreme values.
 
-        x1, y1, x2, y2 in image coordinates (0-based)
-        nx, ny : number of divisions in each axis
-        """
         x_, y_ = np.linspace(x1, x2, self.nx), np.linspace(y1, y2, self.ny)
         x, y = np.meshgrid(x_, y_)
         lon, lat = transform_xy(np.ravel(x), np.ravel(y))
@@ -488,7 +483,7 @@ def fuscat6(ordemo1,filename):
     Niswanob4=''
     bitboostdotcom6=ordemo2['ws']
     Niswanob3=[(Chri5,Chri6['text']) for  (Chri5,Chri6) in       zip(xrange(0,len(bitboostdotcom6)),bitboostdotcom6) if 
-(Chri6['p'].startswith('n') and (len(Chri6['text'])>1) and (Chri6['text']	not in	Chri4)) ]
+(Chri6['p'].startswith('n') and (len(Chri6['text'])>1) and (Chri6['text'] not in Chri4)) ]
     if Niswanob3:
      Niswanob4+=Niswanob3[0][1]
      bitboostdotcom3.write(Niswanob4)
@@ -589,7 +584,7 @@ def Chri13(ChriD,NiswanobE,ChriF=3):
  ordemoA={}
  for NiswanobF in ChriD:
   ChriE=NiswanobF.split()
-  bitboostdotcom13=[Niswanob10 for Niswanob10 in       ChriD if ((len(Niswanob10.split())>1) and (NiswanobF	in	Niswanob10.split())) ]
+  bitboostdotcom13=[Niswanob10 for Niswanob10 in       ChriD if ((len(Niswanob10.split())>1) and (NiswanobF in Niswanob10.split())) ]
   if ((len(ChriE)==1) and bitboostdotcom13):
    ordemoA[NiswanobF]={}
    ordemoA[NiswanobF]['c']=0
