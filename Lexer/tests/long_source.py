@@ -222,10 +222,6 @@ class LocatorD(LocatorBase):
 
 class FormatterDMS(object):
 
-    deg_mark = "^{\circ}"
-    min_mark = "^{\prime}"
-    sec_mark = "^{\prime\prime}"
-
     fmt_d = "$%d"+deg_mark+"$"
     fmt_ds = r"$%d.\!\!"+deg_mark+"%s$"
 

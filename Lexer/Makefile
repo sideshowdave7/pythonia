@@ -1,31 +1,37 @@
+# Your Lexer's executable target
 LEXER_EXE_TARGET = PYTHONIA-OPTIMUS-LEXER
-LEXER_EXE = lexer
-RACKET_PATH = /u/homes/dhurst/racket/bin/racket
 
+# Your Lexer's executable
+LEXER_EXE = lexer
+
+# Path to Racket
+RACKET_PATH = /usr/local/bin/racket
+
+# change the compilation command. You won't need raco unless
+# you did your lexer in Racket
 $(LEXER_EXE):
 	raco exe lexer.rkt
 
+# Dependencies of your target; you probably won't need to edit
+# this.
 $(LEXER_EXE_TARGET): $(LEXER_EXE)
+
+# DON'T EDIT ANYTHING BELOW THIS UNLESS YOU REALLY WANT TO
 
 SRCS = $(shell ls tests/*.py)
 EXPECTED = $(SRCS:.py=.py.expected)
-DIFFS    = $(SRCS:.py=.diff)
 EXPECTED_NORMALIZED = $(SRCS:.py=.py.expected.normalized)
 EXPECTED_NORMALIZED_RKT = $(SRCS:.py=.py.expected.normalized.rkt)
 ACTUAL = $(SRCS:.py=.py.actual)
 
 %.py.expected: %.py
 	curl --data-urlencode "file@$<" http://matt.might.net/apps/pylex/pylex.php > $@ 2> /dev/null
-	#./pylex < $< > $@ 2> /dev/null
 
 %.py.expected.normalized.rkt: %.py.expected
 	cat 'Normalizer.rkt' $< > $@
 
 %.py.expected.normalized: %.py.expected.normalized.rkt
 	$(RACKET_PATH) -t $< > $@
-
-run: $(RUN_TARGET)
-	./$(LEXER_EXE)
 
 expected: $(EXPECTED_NORMALIZED)
 
@@ -37,11 +43,11 @@ test: $(LEXER_EXE_TARGET) expected
 	    $(RACKET_PATH) -t $$test.actual.normalized.rkt   > $$test.actual.normalized 2> /dev/null; \
 	    result=`diff -q $$test.actual.normalized $$test.expected.normalized`; \
 	    if echo "$$result" |grep -q differ; then \
-	      echo FAIL ... "$$filename"; \
+	      echo '\033[01;31m'FAIL ... "$$filename"'\033[00;00m'; \
 	      diff $$test.actual.normalized $$test.expected.normalized > $$test.diff; \
 	    else \
-	      echo PASS ... "$$filename"; \
+	      echo '\033[01;32m'PASS ... "$$filename"'\033[00;00m'; \
 	    fi  ; done
 
 clean:
-	rm -f $(LEXER_EXE) tests/*.normalized tests/*.normalized.rkt tests/*.actual tests/*.expected diffs
+	rm -f $(LEXER_EXE) tests/*.normalized tests/*.normalized.rkt tests/*.actual tests/*.expected
