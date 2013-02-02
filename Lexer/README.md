@@ -8,10 +8,23 @@ Authors: David Hurst
          Blake Sleight
 
 
+Table of contents:
+        1. Makefile usage
+        2. Expected Behaviour
+        3. Included test notes
+        4. Lexer Implementation Notes
+
+
+
+1. Makefile usage:
+
+Building the executable (should be done first):
+   
+      make
+
 Running from STDIN to STDOUT:
-
+     
       make run
-
 
 Running test suite:
 
@@ -19,7 +32,74 @@ Running test suite:
 
 
 
-Lexer Implementation notes:
+2. Expected Behaviour:
+
+       Tabs:             The lexer handles tabs by assuming they are an error, and an error token is immediately generated stating so.
+       Unicode:          The lexer currently does not have support for input of unicode.
+       
+       LITerals:         Octal and hex escaped values, e.g. '\100' will be displayed as such, and not '@' if found in a string or byte literal.  (Passes eq? inside racket except for '\000')                
+                         Number literals including floating point, integer, binary, octal, hexadecimal, and imaginary numbers are processed into racket-compatible values.  
+                         String and byte literals are both treated the same (both become string objects in racket, although this behaviour could be easily modified for convenience in creating the parser).
+                         String and byte literals are allowed to have both raw, and non-raw versions (raw when preceded by r) according to the python lexical specification.  The lexer handles raw strings appropiately by treating the backslash "\" as a charactar and not an escape sequence.
+                         
+
+       INDENTS/DEDENTS:  All indents and dedents should behave as expected with one exception: 
+                                    An indent will be generated in the case of a line explicity joined with a following line with whitespace before another token.  Pylex does not perform this way (not sure if this within Pythons lexical specification as the document is ambigious.
+                     
+                         Before and ENDMARKER, the correct amount of DEDENTS will be shown to reset the indentation stack to zero.
+                         If the first token is indented by any amount, an INDENT will be generated.  This is not allowed in the parser, but is allowed lexically and matches with the behaviour of pylex.
+                         Blank lines will not generate excess NEWLINE tokens.
+
+       ENDMARKER:        A single ENDMARKER token is generated when the lexer encounters eof.
+       KEYWORD:          A KEYWORD is generated when an ID matches with a python-defined keyword.
+       PUNCT:            A PUNCT keyword is generated when the lexer encounters an python-defined OPERATOR or DELIMETER is found.
+       
+       Comments:         Comments are completely ignored, including when comments end in a backslash "\".
+ 
+       Backslash:        The backslash "\", is treated differently depending on its context, according Python lexical specification.  It is used as an explicit line join outside of raw strings and comments.  Otherwise it joins two physical lines.  No newline is generated in the case of an explicit line join.
+
+       Noted 'quirks':   
+
+
+
+3. Included test notes
+
+         When the included test suite is run, several files are generated for each python file in the tests subdirectory:
+  
+            test.py.actual                      actual results using this lexer
+            test.py.acutal.normalized           normalized results using this lexer
+            test.py.expected                    expected results obtained from reference lexer
+            test.py.expected.normalized         normalized expected results obtained from reference lexer
+            test.py.diffs                       diff between test.py.actual.normalized and test.py.expected.normalized (no file generated if no diffs)
+
+         The following tests produce a fail, but most are actually passes (a simple diff is not enought to check equality).  Their behaviour is explained below:
+
+                Any test with   "error_"         as a prefix: due to the fact that this lexer generates error tokens differently (specification only requires ERROR token to be generated somewhere in the output)
+                Any test with   "bytes_literal"  as a prefix: due to the issue stated above, (this lexer prints escaped values like: '\100' as opposed to '@' in the reference lexer)
+                Some tests with "line_join"      as a prefix: due to a small quirk when a doublequoted long string (three double quotes) generate a newline when displayed in racket.  This occurs as part of the lexer output formatting, and not the lexer itself.  For example, a long double quoted literal is usually formated correctly, but rarely, racket produces this:
+ 
+                input:    """
+                          abc
+                          def
+                          """
+
+                output:
+  
+                 (LIT 
+                  "\nabc\ndef")
+                              
+                Despite the value held in racket being correct, the formater adds a newline, and we were unable to debug why.  This has no effect on the correctness of the lexer as the string produced is correct.
+
+        
+                Some tests with "string_literal" as a prefix: 
+
+                string_literal_eof:              Same issue as tests prefixed with "error_", error token is generated differently.
+                string_literal_CR:               Same issue as above (string_literal_eof).
+                string_literal_escapes:          Same issue as bytes_literal_  tests. (Escaped values not printed the same).
+
+                   
+
+4. Lexer Implementation notes:
 	Lexers:
 		PYTHONIA-OPTIMUS-LEXER:
 			This is the core lexer. HAndles calling into the other lexers, as well as a lot of the simple and straightforward lexing.  

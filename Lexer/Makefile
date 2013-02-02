@@ -9,6 +9,7 @@ $(LEXER_EXE_TARGET): $(LEXER_EXE)
 
 SRCS = $(shell ls tests/*.py)
 EXPECTED = $(SRCS:.py=.py.expected)
+DIFFS    = $(SRCS:.py=.diff)
 EXPECTED_NORMALIZED = $(SRCS:.py=.py.expected.normalized)
 EXPECTED_NORMALIZED_RKT = $(SRCS:.py=.py.expected.normalized.rkt)
 ACTUAL = $(SRCS:.py=.py.actual)
@@ -37,7 +38,7 @@ test: $(LEXER_EXE_TARGET) expected
 	    result=`diff -q $$test.actual.normalized $$test.expected.normalized`; \
 	    if echo "$$result" |grep -q differ; then \
 	      echo FAIL ... "$$filename"; \
-	      diff $$test.actual.normalized $$test.expected.normalized > ./$$test.diffs; \
+	      diff $$test.actual.normalized $$test.expected.normalized > $$test.diff; \
 	    else \
 	      echo PASS ... "$$filename"; \
 	    fi  ; done
