@@ -1,26 +1,51 @@
-(file_input      (>--> (seq* (rep (or NEWLINE stmt)) ENDMARKER)
+(file_input      (>--> (seq* (rep (or NEWLINE (>--> stmt [stmt (cdr stmt)]))) ENDMARKER)
                  [(list stmts '(ENDMARKER)) (cons 'program (remove '(NEWLINE) stmts))]     ))
 
-(funcdef         (seq "def" NAME parameters ":" suite))
-(parameters      (seq "(" (opt paramlist) ")"))
-(paramlist       (seq (seq NAME (rep (seq "," NAME))) (opt ",")))
+
+(funcdef         (>--> (seq "def" NAME parameters (>--> (seq ":" suite)[(list ":" suite)(list suite)]))
+                 [(list def name params suite)   (list 'def (list name params) suite)]   ))
+
+
+(parameters      (>--> (seq* "(" (opt paramlist) ")")
+                  [(list "(" paramlist ")") (if (eq? 'none paramlist) '() paramlist)]))
+
+(paramlist       (>--> (seq* (>--> (seq* NAME (rep (>--> (seq* "," NAME)[(list "," name) name]
+                                                                  ['() '()]))) [(list name reps) (cons name reps)]) 
+                 (opt ","))
+                 [(list params ",") params]
+                 [(list params 'none) params]))
+
 
 (stmt            (>--> (or simple_stmt compound_stmt)
                  [stmt (cons 'expr stmt)]     ))
 
-(simple_stmt     (>--> (seq* (seq small_stmt (rep (seq ";" small_stmt))) (opt ";") NEWLINE)      
-                 [(list small_stmt other '(NEWLINE)) (remove ";" small_stmt)]       ))
+(simple_stmt     (>--> (seq* (>--> (seq* small_stmt (rep (>--> (seq* ";" small_stmt)[(list ";" small_stmt) small_stmt])))[(list small_stmt reps) (cons small_stmt reps)]) (opt ";") NEWLINE)      
+                  [(list simple_stmt 'none '(NEWLINE)) (car simple_stmt)]
+                  [(list simple_stmt ";"   '(NEWLINE)) (car simple_stmt)]))
+
                  
-(small_stmt      (or expr_stmt del_stmt pass_stmt flow_stmt global_stmt nonlocal_stmt assert_stmt))
+(small_stmt      (>--> (or expr_stmt del_stmt pass_stmt flow_stmt global_stmt nonlocal_stmt assert_stmt)
+                 [stmt stmt]))
+
 (expr_stmt       (>--> (or (seq* testlist augassign testlist) (seq* testlist "=" testlist) tuple_or_test)
+                 [(list t1 augassign t2) (list augassign t1 t2)]
+                 [(list t1 "=" t2) (list "=" t1 t2)]
                  [expr_stmt expr_stmt]      ))
-(augassign       (or "+=" "-=" "*=" "/=" "%=" "&=" "|=" "^=" "<<=" ">>=" "**=" "//="))
+
+(augassign       (>--> (or "+=" "-=" "*=" "/=" "%=" "&=" "|=" "^=" "<<=" ">>=" "**=" "//=")
+                 [augassign augassign] 
+                 ))
+
 (del_stmt        (seq "del" star_expr))
 (pass_stmt       "pass")
-(flow_stmt       (or break_stmt continue_stmt return_stmt raise_stmt))
+(flow_stmt       (>--> (or break_stmt continue_stmt return_stmt raise_stmt)
+                 [stmt stmt]      ))
 (break_stmt      "break")
 (continue_stmt   "continue")
-(return_stmt     (seq "return" (opt testlist)))
+(return_stmt     (>--> (seq* "return" (opt testlist))
+                 [(list 'return 'none) 'return]
+                 [(list 'return testlist) (list 'return testlist)]))
+
 (raise_stmt      (seq "raise" (opt (seq test (opt (seq "from" test))))))
 (global_stmt     (seq "global" NAME (rep (seq "," NAME))))
 (nonlocal_stmt   (seq "nonlocal" NAME (rep (seq "," NAME))))
@@ -33,7 +58,8 @@
 (try_stmt        (seq "try" ":" suite (or (seq (rep+ (seq except_clause ":" suite)) (opt (seq "else" ":" suite)) (opt (seq "finally" ":" suite))) (seq "finally" ":" suite))))
 (except_clause   (seq "except" (opt (seq test (opt (seq "as" NAME))))))
 
-(suite           (or simple_stmt (seq NEWLINE INDENT (rep+ stmt) DEDENT)))
+(suite           (or simple_stmt (>--> (seq* NEWLINE INDENT (rep+ (>--> stmt [stmt (cdr stmt)])) DEDENT)
+                 [(list '(NEWLINE) '(INDENT) reps '(DEDENT)) (list (cons 'suite reps))])      ))
 
 (test            (or (seq or_test "if" or_test "else" test) or_test lambdef))
 
@@ -46,8 +72,11 @@
                  [(list not_test) not_test]      ))
 
 (not_test        (or (seq "not" not_test) comparison))
-(comparison      (>--> (seq star_expr (rep (seq comp_op star_expr)))
-                 [(list star_expr) star_expr ]     ))
+
+(comparison      (>--> (seq star_expr (rep (seq* comp_op star_expr)))
+                 [(list star_expr) star_expr ]
+                 [(list star_expr reps) (cons star_expr reps)]))
+
 (comp_op         (or "<" ">" "==" ">=" "<=" "<>" "!=" "in" (seq "not" "in") "is" (seq "is" "not")))
 
 (star_expr       (>--> (seq* (opt "*") expr)
@@ -103,7 +132,12 @@
                 [(list "." name) (list (cons 'called name))]))
 
 
-(testlist       (seq (seq test (rep (seq "," test))) (opt ",")))
+(testlist       (>--> (seq* (>--> (seq* test (rep (>--> (seq* "," test)[(list "," test) test])))[(list test reps) (cons test reps)])
+                            
+                      (opt ","))
+                      [(list testlist ",") (if (= 1 (length testlist)) (car testlist) testlist)]
+                      [(list testlist 'none) (if (= 1 (length testlist)) (car testlist) testlist)]))
+
 
 (tuple_or_test  (>--> (seq* test (rep (seq "," test)) (opt ","))
                 [(list test '() none) test]      ))
