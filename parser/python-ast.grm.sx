@@ -1,9 +1,9 @@
-(file_input      (>--> (seq* (rep (or NEWLINE (>--> stmt [stmt (cdr stmt)]))) ENDMARKER)
+(file_input      (>--> (seq* (rep (or NEWLINE (>--> stmt [stmt stmt]))) ENDMARKER)
                  [(list stmts '(ENDMARKER)) (cons 'program (remove '(NEWLINE) stmts))]     ))
 
 
-(funcdef         (>--> (seq "def" NAME parameters (>--> (seq ":" suite)[(list ":" suite)(list suite)]))
-                 [(list def name params suite)   (list 'def (list name params) suite)]   ))
+(funcdef         (>--> (seq "def" NAME parameters (>--> (seq* ":" suite)[(list ":" suite)(list suite)]))
+                 [(list 'def name params suite)   (list 'def (cons name params) suite)]   ))
 
 
 (parameters      (>--> (seq* "(" (opt paramlist) ")")
@@ -17,7 +17,7 @@
 
 
 (stmt            (>--> (or simple_stmt compound_stmt)
-                 [stmt (cons 'expr stmt)]     ))
+                 [stmt stmt]     ))
 
 (simple_stmt     (>--> (seq* (>--> (seq* small_stmt (rep (>--> (seq* ";" small_stmt)[(list ";" small_stmt) small_stmt])))[(list small_stmt reps) (cons small_stmt reps)]) (opt ";") NEWLINE)      
                   [(list simple_stmt 'none '(NEWLINE)) (car simple_stmt)]
@@ -30,7 +30,7 @@
 (expr_stmt       (>--> (or (seq* testlist augassign testlist) (seq* testlist "=" testlist) tuple_or_test)
                  [(list t1 augassign t2) (list augassign t1 t2)]
                  [(list t1 "=" t2) (list "=" t1 t2)]
-                 [expr_stmt expr_stmt]      ))
+                 [expr_stmt (cons 'expr expr_stmt)]      ))
 
 (augassign       (>--> (or "+=" "-=" "*=" "/=" "%=" "&=" "|=" "^=" "<<=" ">>=" "**=" "//=")
                  [augassign augassign] 
@@ -44,7 +44,7 @@
 (continue_stmt   "continue")
 (return_stmt     (>--> (seq* "return" (opt testlist))
                  [(list 'return 'none) 'return]
-                 [(list 'return testlist) (list 'return testlist)]))
+                 [(list 'return testlist) (list 'return (car testlist))]))
 
 (raise_stmt      (seq "raise" (opt (seq test (opt (seq "from" test))))))
 (global_stmt     (seq "global" NAME (rep (seq "," NAME))))
@@ -52,14 +52,21 @@
 (assert_stmt     (seq "assert" test (opt (seq "," test))))
 
 (compound_stmt   (or if_stmt while_stmt for_stmt try_stmt funcdef))
-(if_stmt         (seq "if" test ":" suite (rep (seq "elif" test ":" suite)) (opt (seq "else" ":" suite))))
+
+(if_stmt         (>--> (seq* "if" test ":" suite 
+                             (rep (>--> (seq* "elif" test ":" suite)[(list "elif" test ":" suite) (cons 'comparison (car test) suite)])) 
+                             (opt (>--> (seq* "else" ":" suite)[(list 'else ":" suite) (cons 'else  (list suite))])))
+                       [(list 'if test ":" suite reps 'none)  (list 'cond (list (cons 'comparison (car test)) suite ))]
+                       ;[(list 'if test ":" suite reps else)  (list 'cond (list (cons 'comparison (car test)) suite reps))]
+                       [(list 'if test ":" suite reps else)   (list 'cond (list (cons 'comparison (car test)) suite) else)]))
+
 (while_stmt      (seq "while" test ":" suite (opt (seq "else" ":" suite))))
 (for_stmt        (seq "for" NAME "in" test ":" suite (opt (seq "else" ":" suite))))
 (try_stmt        (seq "try" ":" suite (or (seq (rep+ (seq except_clause ":" suite)) (opt (seq "else" ":" suite)) (opt (seq "finally" ":" suite))) (seq "finally" ":" suite))))
 (except_clause   (seq "except" (opt (seq test (opt (seq "as" NAME))))))
 
-(suite           (or simple_stmt (>--> (seq* NEWLINE INDENT (rep+ (>--> stmt [stmt (cdr stmt)])) DEDENT)
-                 [(list '(NEWLINE) '(INDENT) reps '(DEDENT)) (list (cons 'suite reps))])      ))
+(suite           (or (>--> simple_stmt [simple_stmt (list 'suite (list simple_stmt))]) (>--> (seq* NEWLINE INDENT (rep+ (>--> stmt [stmt stmt])) DEDENT)
+                 [(list '(NEWLINE) '(INDENT) reps '(DEDENT)) (if (= 1 (length reps))(cons 'suite reps)(cons 'suite reps))])      ))
 
 (test            (or (seq or_test "if" or_test "else" test) or_test lambdef))
 
@@ -73,8 +80,8 @@
 
 (not_test        (or (seq "not" not_test) comparison))
 
-(comparison      (>--> (seq star_expr (rep (seq* comp_op star_expr)))
-                 [(list star_expr) star_expr ]
+(comparison      (>--> (seq star_expr (>--> (rep (>--> (seq* comp_op star_expr)[(list comp_op star_expr)(list comp_op star_expr)]))[a (list a)]))
+                 [(list star_expr 'none) star_expr ]
                  [(list star_expr reps) (cons star_expr reps)]))
 
 (comp_op         (or "<" ">" "==" ">=" "<=" "<>" "!=" "in" (seq "not" "in") "is" (seq "is" "not")))
@@ -117,8 +124,8 @@
                   [(list indexed "**" factor) indexed]
                   [(list indexed) indexed]))
 
-(atom            (>--> (or (seq "(" (opt tuple_or_test) ")") (seq "[" (opt testlist) "]") (seq "{" (opt dictorsetmaker) "}") NAME NUMBER (rep+ STRING) "..." "None" "True" "False")
-                  [(list "(" tuple_or_test ")") (list "hi" tuple_or_test)]
+(atom            (>--> (or (seq* "(" (opt tuple_or_test) ")") (seq "[" (opt testlist) "]") (seq "{" (opt dictorsetmaker) "}") NAME NUMBER (rep+ STRING) "..." "None" "True" "False")
+                  [(list "(" tuple_or_test ")") tuple_or_test]
                   [(list atom) atom]
                   [atom atom]
                   ))
@@ -139,8 +146,9 @@
                       [(list testlist 'none) (if (= 1 (length testlist)) (car testlist) testlist)]))
 
 
-(tuple_or_test  (>--> (seq* test (rep (seq "," test)) (opt ","))
-                [(list test '() none) test]      ))
+(tuple_or_test  (>--> (seq* test (rep (>--> (seq* "," test)[(list "," test) (list test)])) (opt ","))
+                [(list test reps none) (if (> (length reps) 0) (cons 'tuple (cons test reps)) test)]
+                [(list test reps ",")  (if (> (length reps) 0) (cons 'tuple (cons test reps)) test)]))
 
 (dictorsetmaker (or (seq (seq (seq test ":" test) (rep (seq "," test ":" test))) (opt ",")) (seq (seq test (rep (seq "," test))) (opt ","))))
 
