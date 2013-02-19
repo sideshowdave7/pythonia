@@ -28,9 +28,9 @@
                  [stmt stmt]))
 
 (expr_stmt       (>--> (or (seq* testlist augassign testlist) (seq* testlist "=" testlist) tuple_or_test)
-                 [(list t1 augassign t2) (list augassign t1 t2)]
+                 ;[(list t1 augassign t2) (list augassign t1 t2)]
                  [(list t1 "=" t2) (list "=" t1 t2)]
-                 [expr_stmt (cons 'expr expr_stmt)]      ))
+                 [expr_stmt (cons 'expr (list expr_stmt))]      ))
 
 (augassign       (>--> (or "+=" "-=" "*=" "/=" "%=" "&=" "|=" "^=" "<<=" ">>=" "**=" "//=")
                  [augassign augassign] 
@@ -43,7 +43,7 @@
 (break_stmt      "break")
 (continue_stmt   "continue")
 (return_stmt     (>--> (seq* "return" (opt testlist))
-                 [(list 'return 'none) 'return]
+                 [(list 'return 'none) (list 'return)]
                  [(list 'return testlist) (list 'return  testlist)]))
 
 (raise_stmt      (seq "raise" (opt (seq test (opt (seq "from" test))))))
@@ -54,18 +54,22 @@
 (compound_stmt   (or if_stmt while_stmt for_stmt try_stmt funcdef))
 
 (if_stmt         (>--> (seq* "if" test ":" suite 
-                             (rep (>--> (seq* "elif" test ":" suite)[(list 'elif test ":" suite) (list (cons 'comparison test) suite)])) 
+                             (rep (>--> (seq* "elif" test ":" suite)[(list 'elif test ":" suite) (cons (cons 'comparison test) suite)])) 
                              (opt (>--> (seq* "else" ":" suite)[(list 'else ":" suite) (cons 'else (list suite))])))
                        [(list 'if test ":" suite reps 'none)  (list 'cond (list (cons 'comparison test) suite ))]
                        
                        [(list 'if test ":" suite reps else)   (if (= 0 (length reps))(list 'cond (list (cons 'comparison test) suite) else)
-                                                                                     (list 'cond (list (cons 'comparison test) suite) reps) else))                                                             
-                                                                                     ]))
+                                                                                     (append `(cond ,(list (cons 'comparison test) suite) ,@reps) else))                                                             
+                                                                                     ]
+                       ))
 
-(while_stmt      (seq "while" test ":" suite (opt (seq "else" ":" suite))))
+(while_stmt      (>--> (seq* "while" test ":" suite (opt (seq "else" ":" suite)))
+                 [(list 'while test ":" suite 'none) (list 'while test suite)]      ))
+
 (for_stmt        (seq "for" NAME "in" test ":" suite (opt (seq "else" ":" suite))))
-(try_stmt        (seq "try" ":" suite (or (seq (rep+ (seq except_clause ":" suite)) (opt (seq "else" ":" suite)) (opt (seq "finally" ":" suite))) (seq "finally" ":" suite))))
-(except_clause   (seq "except" (opt (seq test (opt (seq "as" NAME))))))
+(try_stmt        (seq* "try" ":" suite (or (seq* (rep+ (seq except_clause ":" suite)) (opt (seq* "else" ":" suite)) (opt (seq* "finally" ":" suite))) (seq* "finally" ":" suite))))
+
+(except_clause   (seq* "except" (opt (seq* test (opt (seq* "as" NAME))))))
 
 (suite           (or (>--> simple_stmt [simple_stmt (list 'suite (list simple_stmt))]) (>--> (seq* NEWLINE INDENT (rep+ (>--> stmt [stmt stmt])) DEDENT)
                  [(list '(NEWLINE) '(INDENT) reps '(DEDENT)) (if (= 1 (length reps))(cons 'suite reps)(cons 'suite reps))])      ))
@@ -82,35 +86,41 @@
 
 (not_test        (or (seq "not" not_test) comparison))
 
-(comparison      (>--> (seq star_expr (>--> (rep (>--> (seq* comp_op star_expr)[(list comp_op star_expr)(list comp_op star_expr)]))[a (list a)]))
-                 [(list star_expr 'none) (if (= 1 (length star_expr)) star_expr star_expr)]
-                 [(list star_expr reps)  (if (= 0 (length reps)) star_expr (cons star_expr reps))]))
+(comparison      (>--> (seq* star_expr (>--> (rep (seq* comp_op star_expr))[a (list a)]))
+                 [(list star_expr (list reps))  (if (eq? '() reps) star_expr (cons star_expr reps))]
+                 ))
                  
 
 (comp_op         (or "<" ">" "==" ">=" "<=" "<>" "!=" "in" (seq "not" "in") "is" (seq "is" "not")))
 
 (star_expr       (>--> (seq* (opt "*") expr)
+                 [(list a) a]                       
                  [(list "*" star_expr) (list 'star star_expr)]
                  [(list 'none star_expr) star_expr] ))
 
-(expr            (>--> (seq* xor_expr (rep (>--> (seq* "|" xor_expr)[(list "|" xor_expr) xor_expr])))
+(expr            (>--> (seq xor_expr (rep (>--> (seq "|" xor_expr)[(list "|" xor_expr) xor_expr])))
+                 [(list a) a]                       
                  [(list term reps) (if (= 0 (length reps)) term (cons 'bitwise-or reps))]))
 
-(xor_expr        (>--> (seq* and_expr (rep (>--> (seq* "^" and_expr)[(list "^" and_expr) and_expr])))
+(xor_expr        (>--> (seq and_expr (rep (>--> (seq "^" and_expr)[(list "^" and_expr) and_expr])))
+                 [(list a) a]                       
                  [(list term reps) (if (= 0 (length reps)) term (cons 'bitwise-xor reps))]))
 
-(and_expr        (>--> (seq* shift_expr (rep (>--> (seq* "&" shift_expr)[(list "&" shift_expr) shift_expr])))
+(and_expr        (>--> (seq shift_expr (rep (>--> (seq "&" shift_expr)[(list "&" shift_expr) shift_expr])))
+                 [(list a) a]                     
                  [(list term reps) (if (= 0 (length reps)) term (cons 'bitwise-and reps))]))
 
-(shift_expr      (>--> (seq* arith_expr (rep (seq* (or "<<" ">>") arith_expr)))
+(shift_expr      (>--> (seq arith_expr (rep (seq (or "<<" ">>") arith_expr)))
+                 [(list a) a]
                  [(list term reps) (if (= 0 (length reps)) term (cons 'shift (cons term reps)))]))
 
 
-(arith_expr      (>--> (seq* term (rep (seq* (or "+" "-") term)))
-                 ;[(list term) term ]
+(arith_expr      (>--> (seq term (rep (seq (or "+" "-") term)))
+                 [(list term) term ]
                  [(list term reps) (if (= 0 (length reps)) term (cons 'arith (cons term reps)))]))
 
 (term            (>--> (seq* factor (rep (seq* (or "*" "/" "%" "//") factor)))
+                  [(list factor) factor] 
                   [(list term reps) (if (= 0 (length reps)) term (cons 'term (cons term reps)))]))
 
 (factor          (or (seq* (or "+" "-" "~") factor) power))
@@ -126,7 +136,7 @@
                   [(list indexed (list "**" factor)) (list 'power indexed factor)]
                   [(list indexed 'none) indexed]))
 
-(atom            (>--> (or (seq* "(" (opt tuple_or_test) ")") (seq "[" (opt testlist) "]") (seq "{" (opt dictorsetmaker) "}") NAME NUMBER (rep+ STRING) "..." "None" "True" "False")
+(atom            (>--> (or (seq* "(" (opt tuple_or_test) ")") (seq* "[" (opt testlist) "]") (seq* "{" (opt dictorsetmaker) "}") NAME NUMBER (rep+ STRING) "..." "None" "True" "False")
                   [(list "(" tuple_or_test ")") (if (eq? 'none tuple_or_test) '() tuple_or_test)]
                   [(list "[" tuple_or_test "]") (if (eq? 'none tuple_or_test) '() tuple_or_test)]
                   ;[(list atom) atom]
@@ -155,8 +165,13 @@
 
 (dictorsetmaker (or (seq (seq (seq test ":" test) (rep (seq "," test ":" test))) (opt ",")) (seq (seq test (rep (seq "," test))) (opt ","))))
 
-(arglist        (>--> (seq* (>--> (seq* test (rep (seq* "," test))) ;=>
-                                   [(list term reps) (if (= 0 (length reps)) term (cons term (cdar reps)))]
-                             ) (opt ","))
-               
-                   [(list test reps) test ]      ))
+(arglist        (>--> (seq* (>--> (seq* test (rep (>--> (seq* "," test)
+                                                        [(list "," test) test]
+                                                        )))
+                                  [(list test reps) (if (= 0 (length (list reps))) test (cons test reps))]
+                                  [(list test) test]
+                                  )(opt ","))
+                      [(list args ",") args]
+                      [(list args 'none) args]
+                      ))
+
