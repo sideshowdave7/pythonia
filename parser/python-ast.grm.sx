@@ -54,11 +54,13 @@
 (compound_stmt   (or if_stmt while_stmt for_stmt try_stmt funcdef))
 
 (if_stmt         (>--> (seq* "if" test ":" suite 
-                             (rep (>--> (seq* "elif" test ":" suite)[(list "elif" test ":" suite) (cons 'comparison (car test) suite)])) 
+                             (rep (>--> (seq* "elif" test ":" suite)[(list 'elif test ":" suite) (list (cons 'comparison (car test)) suite)])) 
                              (opt (>--> (seq* "else" ":" suite)[(list 'else ":" suite) (cons 'else  (list suite))])))
                        [(list 'if test ":" suite reps 'none)  (list 'cond (list (cons 'comparison (car test)) suite ))]
-                       ;[(list 'if test ":" suite reps else)  (list 'cond (list (cons 'comparison (car test)) suite reps))]
-                       [(list 'if test ":" suite reps else)   (list 'cond (list (cons 'comparison (car test)) suite) else)]))
+                       
+                       [(list 'if test ":" suite reps else)   (if (= 0 (length reps))(list 'cond (list (cons 'comparison (car test)) suite) else)
+                                                                                     (list 'cond (cons 'comparison (car test)) suite reps else))                                                             
+                                                                                     ]))
 
 (while_stmt      (seq "while" test ":" suite (opt (seq "else" ":" suite))))
 (for_stmt        (seq "for" NAME "in" test ":" suite (opt (seq "else" ":" suite))))
@@ -69,7 +71,7 @@
                  [(list '(NEWLINE) '(INDENT) reps '(DEDENT)) (if (= 1 (length reps))(cons 'suite reps)(cons 'suite reps))])      ))
 
 (test            (or (seq or_test "if" or_test "else" test) or_test lambdef))
-
+                      
 (lambdef         (seq "lambda" (opt paramlist) ":" test))
 
 (or_test         (>--> (seq and_test (rep (seq "or" and_test)))
@@ -81,7 +83,7 @@
 (not_test        (or (seq "not" not_test) comparison))
 
 (comparison      (>--> (seq star_expr (>--> (rep (>--> (seq* comp_op star_expr)[(list comp_op star_expr)(list comp_op star_expr)]))[a (list a)]))
-                 [(list star_expr 'none) star_expr ]
+                 [(list star_expr 'none) (if (= 1 (length star_expr)) (car star_expr)star_expr)]
                  [(list star_expr reps) (cons star_expr reps)]))
 
 (comp_op         (or "<" ">" "==" ">=" "<=" "<>" "!=" "in" (seq "not" "in") "is" (seq "is" "not")))
@@ -90,17 +92,17 @@
                  [(list "*" star_expr) (list 'star star_expr)]
                  [(list 'none star_expr) star_expr] ))
 
-(expr            (>--> (seq xor_expr (rep (seq "|" xor_expr)))
-                 [(list a) a]      ))
+(expr            (>--> (seq* xor_expr (rep (>--> (seq* "|" xor_expr)[(list "|" xor_expr) xor_expr])))
+                 [(list term reps) (if (= 0 (length reps)) term (cons 'bitwise-or reps))]))
 
-(xor_expr        (>--> (seq and_expr (rep (seq "^" and_expr)))
-                 [(list a) a]      ))
+(xor_expr        (>--> (seq* and_expr (rep (>--> (seq* "^" and_expr)[(list "^" and_expr) and_expr])))
+                 [(list term reps) (if (= 0 (length reps)) term (cons 'bitwise-xor reps))]))
 
-(and_expr        (>--> (seq shift_expr (rep (seq "&" shift_expr)))
-                 [(list a) a]      ))
+(and_expr        (>--> (seq* shift_expr (rep (>--> (seq* "&" shift_expr)[(list "&" shift_expr) shift_expr])))
+                 [(list term reps) (if (= 0 (length reps)) term (cons 'bitwise-and reps))]))
 
-(shift_expr      (>--> (seq arith_expr (rep (seq (or "<<" ">>") arith_expr)))
-                 [(list arith_expr) arith_expr]      ))
+(shift_expr      (>--> (seq* arith_expr (rep (seq* (or "<<" ">>") arith_expr)))
+                 [(list term reps) (if (= 0 (length reps)) term (cons 'shift (cons term reps)))]))
 
 
 (arith_expr      (>--> (seq* term (rep (seq* (or "+" "-") term)))
@@ -126,8 +128,8 @@
 
 (atom            (>--> (or (seq* "(" (opt tuple_or_test) ")") (seq "[" (opt testlist) "]") (seq "{" (opt dictorsetmaker) "}") NAME NUMBER (rep+ STRING) "..." "None" "True" "False")
                   [(list "(" tuple_or_test ")") tuple_or_test]
-                  [(list atom) atom]
-                  [atom atom]
+                  ;[(list atom) atom]
+                  ;[atom atom]
                   ))
                   
                 

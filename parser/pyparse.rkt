@@ -1106,7 +1106,7 @@
 0 0 22 3 3 #"  ("
 0 0 14 3 17 #"grammar-from-file"
 0 0 22 3 1 #" "
-0 0 14 3 10 #"file_input"
+0 0 14 3 13 #"tuple_or_test"
 0 0 22 3 1 #" "
 0 0 19 3 19 #"\"python-ast.grm.sx\""
 0 0 22 3 2 #"))"
