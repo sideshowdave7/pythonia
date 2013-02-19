@@ -44,7 +44,7 @@
 (continue_stmt   "continue")
 (return_stmt     (>--> (seq* "return" (opt testlist))
                  [(list 'return 'none) 'return]
-                 [(list 'return testlist) (list 'return (car testlist))]))
+                 [(list 'return testlist) (list 'return  testlist)]))
 
 (raise_stmt      (seq "raise" (opt (seq test (opt (seq "from" test))))))
 (global_stmt     (seq "global" NAME (rep (seq "," NAME))))
@@ -54,12 +54,12 @@
 (compound_stmt   (or if_stmt while_stmt for_stmt try_stmt funcdef))
 
 (if_stmt         (>--> (seq* "if" test ":" suite 
-                             (rep (>--> (seq* "elif" test ":" suite)[(list 'elif test ":" suite) (list (cons 'comparison (car test)) suite)])) 
-                             (opt (>--> (seq* "else" ":" suite)[(list 'else ":" suite) (cons 'else  (list suite))])))
-                       [(list 'if test ":" suite reps 'none)  (list 'cond (list (cons 'comparison (car test)) suite ))]
+                             (rep (>--> (seq* "elif" test ":" suite)[(list 'elif test ":" suite) (list (cons 'comparison test) suite)])) 
+                             (opt (>--> (seq* "else" ":" suite)[(list 'else ":" suite) (cons 'else (list suite))])))
+                       [(list 'if test ":" suite reps 'none)  (list 'cond (list (cons 'comparison test) suite ))]
                        
-                       [(list 'if test ":" suite reps else)   (if (= 0 (length reps))(list 'cond (list (cons 'comparison (car test)) suite) else)
-                                                                                     (list 'cond (cons 'comparison (car test)) suite reps else))                                                             
+                       [(list 'if test ":" suite reps else)   (if (= 0 (length reps))(list 'cond (list (cons 'comparison test) suite) else)
+                                                                                     (list 'cond (list (cons 'comparison test) suite) reps) else))                                                             
                                                                                      ]))
 
 (while_stmt      (seq "while" test ":" suite (opt (seq "else" ":" suite))))
@@ -83,8 +83,9 @@
 (not_test        (or (seq "not" not_test) comparison))
 
 (comparison      (>--> (seq star_expr (>--> (rep (>--> (seq* comp_op star_expr)[(list comp_op star_expr)(list comp_op star_expr)]))[a (list a)]))
-                 [(list star_expr 'none) (if (= 1 (length star_expr)) (car star_expr)star_expr)]
-                 [(list star_expr reps) (cons star_expr reps)]))
+                 [(list star_expr 'none) (if (= 1 (length star_expr)) star_expr star_expr)]
+                 [(list star_expr reps)  (if (= 0 (length reps)) star_expr (cons star_expr reps))]))
+                 
 
 (comp_op         (or "<" ">" "==" ">=" "<=" "<>" "!=" "in" (seq "not" "in") "is" (seq "is" "not")))
 
@@ -114,7 +115,7 @@
 
 (factor          (or (seq* (or "+" "-" "~") factor) power))
 
-(indexed         (>--> (seq atom (rep trailer))
+(indexed         (>--> (seq* atom (rep trailer))
                  [(list term reps) (if (= 0 (length reps)) term (cons 'indexed (cons term reps)))]
 
                  [(list atom) atom]
@@ -122,21 +123,21 @@
                   ))
 
 (power           (>--> (seq* indexed (opt (seq* "**" factor) ))
-                  [indexed (car indexed)]
-                  [(list indexed "**" factor) indexed]
-                  [(list indexed) indexed]))
+                  [(list indexed (list "**" factor)) (list 'power indexed factor)]
+                  [(list indexed 'none) indexed]))
 
 (atom            (>--> (or (seq* "(" (opt tuple_or_test) ")") (seq "[" (opt testlist) "]") (seq "{" (opt dictorsetmaker) "}") NAME NUMBER (rep+ STRING) "..." "None" "True" "False")
-                  [(list "(" tuple_or_test ")") tuple_or_test]
+                  [(list "(" tuple_or_test ")") (if (eq? 'none tuple_or_test) '() tuple_or_test)]
+                  [(list "[" tuple_or_test "]") (if (eq? 'none tuple_or_test) '() tuple_or_test)]
                   ;[(list atom) atom]
-                  ;[atom atom]
+                  [atom atom]
                   ))
                   
                 
                 
 
 (trailer        (>--> (or (seq* "(" (opt arglist) ")") (seq* "[" tuple_or_test "]") (seq* "." NAME))
-                [(list "(" args ")") (list (cons 'called args))]
+                [(list "(" args ")") (if (eq? 'none args) (list 'called) (cons 'called args))]
                 [(list "[" args "]") (list (cons 'called args))]
                 [(list "." name) (list (cons 'called name))]))
 
