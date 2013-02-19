@@ -63,8 +63,12 @@
                                                                                      ]
                        ))
 
-(while_stmt      (>--> (seq* "while" test ":" suite (opt (seq "else" ":" suite)))
-                 [(list 'while test ":" suite 'none) (list 'while test suite)]      ))
+(while_stmt      (>--> (seq* "while" test ":" suite 
+                       (opt (>--> (seq* "else" ":" suite) 
+                            [(list 'else ":" suite) suite] ))) 
+                 [(list 'while test ":" suite 'none) (list 'while test suite)]
+                 [(list 'while test ":" suite else)  (list 'while test suite else )]
+                 ))
 
 (for_stmt        (seq "for" NAME "in" test ":" suite (opt (seq "else" ":" suite))))
 (try_stmt        (seq* "try" ":" suite (or (seq* (rep+ (seq except_clause ":" suite)) (opt (seq* "else" ":" suite)) (opt (seq* "finally" ":" suite))) (seq* "finally" ":" suite))))
