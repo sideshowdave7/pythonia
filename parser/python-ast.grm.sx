@@ -104,12 +104,16 @@
 
 (or_test         (>--> (seq* and_test (rep (>--> (seq* "or" and_test)[(list 'or and_test)and_test])))
                  [(list and_test '()) and_test]
-                 [(list and_test reps) (list 'or (cons and_test reps)) ]))
+                 [(list and_test reps) (cons 'or (cons and_test reps)) ]))
 
-(and_test        (>--> (seq not_test (rep (seq "and" not_test)))
-                 [(list not_test) not_test]      ))
+(and_test         (>--> (seq* not_test (rep (>--> (seq* "and" not_test)[(list 'and not_test)not_test])))
+                 [(list not_test '()) not_test]
+                 [(list not_test reps) (cons 'and (cons not_test reps)) ]))
 
-(not_test        (or (seq "not" not_test) comparison))
+(not_test        (>--> (or (seq* "not" not_test) comparison)
+                       [(list 'not not_test) (list 'not not_test)]
+                       [comparison (cons 'comparison comparison)]
+                       ))
 
 (comparison      (>--> (seq* star_expr (>--> (rep (seq* comp_op star_expr))[a (list a)]))
                  [(list star_expr (list reps))  (if (eq? '() reps) star_expr (cons star_expr reps))]
