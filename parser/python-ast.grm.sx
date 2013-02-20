@@ -58,18 +58,18 @@
 (nonlocal_stmt   (>--> (seq* "nonlocal" NAME (>--> (rep (>--> (seq* "," NAME)[(list "," name) name]))[reps `(,@reps)]))[(list 'nonlocal name reps)(cons 'nonlocal (cons name reps))]))
 
 (assert_stmt     (>--> (seq* "assert" test (opt (seq* "," test)))
-                 [(list 'assert test 'none) (list 'assert (cons 'comparison test))]
-                 [(list 'assert test1 (list "," test2)) (list 'assert (cons 'comparison test1) (cons 'comparison test2))]))
+                 [(list 'assert test 'none) (list 'assert test)]
+                 [(list 'assert test1 (list "," test2)) (list 'assert test1 test2)]))
 
 (compound_stmt   (or if_stmt while_stmt for_stmt try_stmt funcdef))
 
 (if_stmt         (>--> (seq* "if" test ":" suite 
-                             (rep (>--> (seq* "elif" test ":" suite)[(list 'elif test ":" suite) (list (cons 'comparison test) suite)])) 
+                             (rep (>--> (seq* "elif" test ":" suite)[(list 'elif test ":" suite) (list test suite)])) 
                              (opt (>--> (seq* "else" ":" suite)[(list 'else ":" suite) (list (cons 'else (list suite)))])))
-                       [(list 'if test ":" suite reps 'none)  (list 'cond (list (cons 'comparison test) suite ))]
+                       [(list 'if test ":" suite reps 'none)  (list 'cond (list test suite ))]
                        
-                       [(list 'if test ":" suite reps else)   (if (= 0 (length reps))(list 'cond (list (cons 'comparison test) suite) else)
-                                                                                     (append `(cond ,(list (cons 'comparison test) suite) ,@reps) else))                                                             
+                       [(list 'if test ":" suite reps else)   (if (= 0 (length reps))(list 'cond (list test suite) else)
+                                                                                     (append `(cond ,(list test suite) ,@reps) else))                                                             
                                                                                      ]
                        ))
 
@@ -99,8 +99,8 @@
 (test            (or (seq or_test "if" or_test "else" test) or_test lambdef))
                       
 (lambdef         (>--> (seq* "lambda" (opt paramlist) ":" test)
-                 [(list 'lambda 'none ":" test) (list 'lambda (cons 'comparison test))]
-                 [(list 'lambda paramlist ":" test) (cons 'lambda (list paramlist (cons 'comparison test)))]))
+                 [(list 'lambda 'none ":" test) (list 'lambda test)]
+                 [(list 'lambda paramlist ":" test) (cons 'lambda (list paramlist test))]))
 
 (or_test         (>--> (seq* and_test (rep (>--> (seq* "or" and_test)[(list 'or and_test)and_test])))
                  [(list and_test '()) and_test]
@@ -112,11 +112,12 @@
 
 (not_test        (>--> (or (seq* "not" not_test) comparison)
                        [(list 'not not_test) (list 'not not_test)]
-                       [comparison (cons 'comparison comparison)]
+                       [comparison comparison]
                        ))
 
-(comparison      (>--> (seq* star_expr (>--> (rep (seq* comp_op star_expr))[a (list a)]))
-                 [(list star_expr (list reps))  (if (eq? '() reps) star_expr (cons star_expr reps))]
+(comparison      (>--> (seq* star_expr (rep (seq* comp_op star_expr)))
+                 [(list star_expr '()) star_expr]
+                 [(list star_expr reps) (cons 'comparison (cons star_expr reps))]                 
                  ))
                  
 
