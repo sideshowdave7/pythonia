@@ -98,10 +98,13 @@
 
 (test            (or (seq or_test "if" or_test "else" test) or_test lambdef))
                       
-(lambdef         (seq "lambda" (opt paramlist) ":" test))
+(lambdef         (>--> (seq* "lambda" (opt paramlist) ":" test)
+                 [(list 'lambda 'none ":" test) (list 'lambda (cons 'comparison test))]
+                 [(list 'lambda paramlist ":" test) (cons 'lambda (list paramlist (cons 'comparison test)))]))
 
-(or_test         (>--> (seq and_test (rep (seq "or" and_test)))
-                 [(list and_test) and_test]     ))
+(or_test         (>--> (seq* and_test (rep (>--> (seq* "or" and_test)[(list 'or and_test)and_test])))
+                 [(list and_test) and_test]
+                 [(list and_test reps) (list 'or (cons and_test reps)) ]))
 
 (and_test        (>--> (seq not_test (rep (seq "and" not_test)))
                  [(list not_test) not_test]      ))
