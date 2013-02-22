@@ -1,0 +1,37 @@
+(program
+ (global a)
+ (def (useless_init arg) (suite (pass)))
+ (def
+  (moar_func)
+  (suite
+   (= (x) (list))
+   (for
+    i
+    (indexed range (called 10))
+    (suite
+     (expr
+      (indexed
+       x
+       (dot append)
+       (called (lambda (x y) (arith (term i ("*" ("-" x))) ("+" y))))))))))
+ (def
+  (main)
+  (suite
+   (expr (indexed useless_init (called "ab")))
+   (def
+    (iner_main arg1 arg2)
+    (suite
+     (return
+      (indexed arg1 (subscript (shift arg2 (">>" (arith 3 ("+" 4)))))))))
+   (= (ident) (lambda (x) x))
+   (= (b) (lambda () 3))
+   (expr
+    (indexed
+     ident
+     (called (indexed iner_main (called (list 1 2 3 4) 12)))
+     (called)))
+   (= (x) (indexed moar_func (called)))))
+ (cond
+  ((comparison __name__ ("==" (indexed "__main__" (called))))
+   (suite (expr (indexed main (called)))))))
+

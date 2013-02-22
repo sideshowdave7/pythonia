@@ -1,0 +1,17 @@
+(program
+ (= (id) 5)
+ (cond
+  ((or (comparison id ("==" 1))
+       (and (comparison id ("not-in" (list 1 2 3)))
+            (not (comparison id ("is-not" 5)))
+            (not (comparison id ("is" 5)))))
+   (suite (expr (indexed print (called "1")))))
+  ((and (comparison (shift id (">>" 4)) (">" 0))
+        (comparison ("-" id) (">" 0))
+        (comparison ("+" id) ("<" 0))
+        (comparison (arith ("~" id) ("-" ("-" id)) ("+" ("+" id))) ("==" 0)))
+   (suite (expr (indexed print (called "2")))))
+  ((comparison (term (power id 2) ("%" 3) ("//" 2)) ("==" 9))
+   (suite (expr (indexed print (called "3")))))
+  (else (suite (expr (indexed print (called "Good")))))))
+

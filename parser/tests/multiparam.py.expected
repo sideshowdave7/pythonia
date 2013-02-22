@@ -1,0 +1,4 @@
+(program
+ (def (foo a b c d) (suite (expr (indexed print (called "hi")))))
+ (expr (indexed foo (called 1 2 3 4))))
+

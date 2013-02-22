@@ -1,0 +1,5 @@
+(program
+ (= ((star a)) (indexed range (called 5)))
+ (= (seq) (indexed range (called 5)))
+ (= (a (star b) c) seq))
+

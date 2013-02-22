@@ -1,0 +1,6 @@
+(program
+ (= (globalvar) 0)
+ (def (foo) (suite (global globalvar) (= (globalvar) 10)))
+ (expr (indexed foo (called)))
+ (expr (indexed print (called globalvar))))
+

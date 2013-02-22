@@ -1,0 +1,17 @@
+(program
+ (def
+  (foo)
+  (suite
+   (= (x) 13)
+   (expr (indexed print (called x)))
+   (def
+    (bar)
+    (suite
+     (nonlocal x)
+     (expr (indexed print (called x)))
+     (= (x) 42)
+     (expr (indexed print (called x)))))
+   (expr (indexed bar (called)))
+   (expr (indexed print (called x)))))
+ (expr (indexed foo (called))))
+

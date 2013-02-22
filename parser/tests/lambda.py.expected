@@ -1,0 +1,5 @@
+(program
+ (= (a) (lambda () (indexed print (called "Hello world"))))
+ (= (b) (lambda () (lambda () (lambda () (indexed print (called "hi"))))))
+ (= (c) (lambda (x y z) (lambda (a b c) (indexed a (called))))))
+

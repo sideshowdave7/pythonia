@@ -1,0 +1,7 @@
+(program
+ (def
+  (a)
+  (suite
+   (for i (indexed range (called 10)) (suite (yield i (term i ("*" i)))))))
+ (for i (indexed a (called)) (suite (expr (indexed print (called i))))))
+

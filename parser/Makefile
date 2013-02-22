@@ -2,13 +2,22 @@ all: pyparse
 	@echo "compiled"
 
 lex:
-	@echo "insert code to run lexer here"
+	./pylex
 
 pyparse: pyparse.rkt python-ast.grm.sx
 	raco exe pyparse.rkt
 
 parse: pyparse derivative-parsers.rkt
-	@pylex | ./pyparse
+	./pyparse | ./pylex
+
+SRCS     = $(shell ls tests/*.py.lexed)
+EXPECTED = $(SRCS:.py.lexed=.py.expected)
+
+expected: $(EXPECTED)
+
+%.py.expected: %.py.lexed
+	curl --data-urlencode "file@$<" http://matt.might.net/apps/pyparse/pyparse.php > $@ 2> /dev/null
+
 
 clean:
 	rm -rf compiled pyparse sdiff
@@ -17,5 +26,5 @@ clean:
 sdiff: sdiff.rkt
 	raco exe sdiff.rkt
 
-test: pyparse sdiff
-	for i in tests/*.py; do make parse < $$i > $$i.out; ./sdiff $$i.out $$i.expected; done
+test: pyparse sdiff expected
+	for i in tests/*.py; do ./pylex < $$i | ./pyparse > $$i.out; ./sdiff $$i.out $$i.expected; done

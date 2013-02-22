@@ -1,0 +1,48 @@
+(program
+ (expr (indexed (list 1 2 3 (list 4 5)) (subscript 2) (subscript 1)))
+ (def (a) (suite (pass)))
+ (def
+  (b func)
+  (suite
+   (= (j) 3)
+   (= (k) (list))
+   (for
+    i
+    (indexed range (called 10))
+    (suite
+     (expr (indexed k (dot append) (called (indexed func (called i j)))))))))
+ (expr (indexed b (called (lambda (x y) (term x ("*" y))))))
+ (= (y) (tuple (lambda (c) 1) 2 c 3))
+ (= (z) (lambda (d) (lambda (x y) (term x ("*" y) ("*" d)))))
+ (expr (indexed b (called (indexed z (called 3)))))
+ (= (omega) (set "a" "b"))
+ (= (decy) (dict ("a" "b") ("c" "d") ("e" "f") (1 3)))
+ (= (y) (list 1 2 3 4 5))
+ (= (labber) (indexed (list 1 2 3 (list 4 5 6)) (subscript 3) (subscript 2)))
+ (def (c nammer) (expr (if (comparison nammer ("==" 3)) 3 2)))
+ (expr (indexed c (called (indexed z (called 3) (called 1 2)))))
+ (= (omega2) (dict))
+ (= (omega3) (set 1 2 3 4 5 6 (list 1 2 3)))
+ (global a)
+ (global a b c)
+ (global a b c d)
+ (nonlocal q)
+ (nonlocal r v)
+ (nonlocal w x y z)
+ (def
+  (main)
+  (suite
+   (while
+    True
+    (suite (pass))
+    (suite (= (y) (term 54 ("*" (power 2 2)) ("/" 7)))))
+   (while False (suite (= (z) (arith 4 ("+" 3)))))
+   (while (comparison 4 ("==" x)) (suite ("-=" (x) (term 2 ("/" 8)))))
+   (for i (indexed range (called 10)) (suite (pass)))
+   (def
+    (moar b)
+    (suite (for i (list 1 2 3 4) (suite (expr (indexed print (called i)))))))))
+ (cond
+  ((comparison __name__ ("==" "__main__"))
+   (suite (expr (indexed main (called)))))))
+

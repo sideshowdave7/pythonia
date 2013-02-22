@@ -1,0 +1,6 @@
+(program
+ (= (id) 5)
+ (assert
+  (comparison id ("in" (list 1 2 3 4 5 6)))
+  (term "id is not in the list!: %r" ("%" id))))
+
