@@ -1,5 +1,0 @@
-(program
- (def (a) (suite (import math) (return (indexed math (dot sqrt) (called 4)))))
- (import math log)
- (import math log bar))
-

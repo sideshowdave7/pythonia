@@ -1,2 +1,0 @@
-(program (decorated (decorator BOB Marly) (def (foo) (suite (pass)))))
-

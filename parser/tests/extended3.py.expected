@@ -1,9 +1,0 @@
-(program
- (expr (indexed "bob" (subscript 3 2 1)))
- (expr (indexed "abcdefg" (subscript #f #f ("-" 1))))
- (expr (indexed "string" (subscript #f #f #f)))
- (expr (indexed "moar" (subscript #f 2 #f)))
- (expr (indexed "less" (subscript 2 #f #f)))
- (expr (indexed "why" (subscript 2 #f #f)))
- (expr (indexed (list 1 2 3) (subscript 0 1 #f))))
-
