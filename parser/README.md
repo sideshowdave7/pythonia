@@ -12,7 +12,7 @@ Authors: David Hurst
 Table of contents:
         1. Makefile usage
         2. Parser Implementation and Behavior
-
+	3. Test cases
 
 
 1. Makefile usage:
@@ -50,5 +50,6 @@ Cleaning up:
 
 
 
-
-        
+3. Test Cases:
+	
+	Our tests are located in the tests subdirectory, and will be automatically run with the 'make test' command.  This loops through each .py file in the directory and reports the diff (using sdiff provided by Matt Might) of our actual output with pre-parsed expected files.  These files must be present in order for the tests to operate.  The expected output is according to the webapp available at matt.might.net/apps/pyparse.
