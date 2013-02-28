@@ -46,6 +46,8 @@ Cleaning up:
 2. Parser Implementation and Behavior:
 	
 	Our Parser uses exclusively the match operator to correctly parse lexed tokens. Using the provided gramer, the derp reductions reduce the lexed tokens to meet 	the specifications. Many reductions used nested match operations to produced the desired outcome. Implementation required we start from the ground and work our way up. The ground, in this case, being an atom. We then worked up slowly from the atom to expressions to tests, until everything was working together. After a few iterations everything came together nicely.
+
+	All of the supplied simple grammar was implemented and tested, but we did not implement anything additional. All of the suplied tests pass. In addition, many short tests were constructed and tested throughout development.
                    
 
 
