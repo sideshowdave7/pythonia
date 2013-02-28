@@ -25,6 +25,14 @@ Running from STDIN to STDOUT:
      
       make run
 
+Lexing from STDIN:
+	
+      make lex
+
+Parsing from STDIN:
+
+      make parser
+
 Running test suite:
 
       make test
