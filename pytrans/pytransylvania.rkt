@@ -226,13 +226,13 @@
   (match index
     [`(subscript ,i)
      (define $i (gensym 'i))
-     (define $e (gensym 'e))
-     `(let ([,$e ,$base])
+     (define $b (gensym 'b))
+     `(let ([,$b ,$base])
         (let ([,$i ,(transform-expr env i)])
           (cond
-            [(py-list? ,$e)  (py-list-set! ,$e ,$i ,expr)]
-            [(tuple? ,$e)    (tuple-set! ,$e ,$i ,expr)]
-            [(dict? ,$e)     (dict-set! ,$e ,$i ,expr)]
+            [(py-list? ,$b)  (py-list-set! ,$b ,$i ,expr)]
+            [(tuple? ,$b)    (tuple-set! ,$b ,$i ,expr)]
+            [(dict? ,$b)     (dict-set! ,$b ,$i ,expr)]
             )))]
     
     [`(dot ,NAME)
@@ -245,7 +245,16 @@
 (define (set-index-augassign env $base index op expr)
   (match index
     [`(subscript ,i)
-     `(bugbait)]
+     (define $i (gensym 'i))
+     (define $b (gensym 'b))
+     (define $v (gensym 'v))
+     `(let ([,$b ,$base])
+        (let ([,$i ,(transform-expr env i)])
+          (cond
+            [(py-list? ,$b)  (py-list-set! ,$b ,$i (,op ,$v ,expr))]
+            [(tuple? ,$b)    (tuple-set! ,$b ,$i (,op ,$v ,expr))]
+            [(dict? ,$b)     (dict-set! ,$b ,$i (,op ,$v ,expr))]
+            )))]
     
     [`(dot ,NAME)
      ; =>
@@ -302,15 +311,20 @@
     [`(= ((indexed ,base ,trailers ... ,index)) ,value)
      ; =>
      ;`(,(transform-expr env (list `indexed base trailers index)))]
-     (define uber '())
-     `(,(map (λ (a) (list (if (= 0 (length uber)) '() (car uber)) (unwind-trailer env base a) (if (= 0 (length uber)) '() (cdr uber)) )) trailers))]
+     ;(unwind-trailers env (set-index env base index value) trailers)]
+     (set-index env (unwind-trailers env (transform-expr env base) trailers) index value)]
     
     
     [`(= ,(and lvals `(,_ ,_ . ,_)) ,expr)
      ; =>
      (define $t (gensym 't))
-     (define i 0)
-     `(look here)]
+     (define new-env (set-add env $t))
+     (define i -1)
+     
+     `(let ((,$t ,(transform-expr new-env expr)))
+        ,@(map (λ (a) (begin (set! i (add1 i)) `(set-global! ,a ,(transform-expr new-env `(indexed ,$t (subscript ,i)))))) lvals))
+     
+     ]
                 
     [`(,(and aug-op (augassign)) (,(and (? symbol?) lval)) ,expr)
      ; =>
@@ -323,7 +337,7 @@
     
     [`(,(and aug-op (augassign)) ((indexed ,base ,trailers ... ,index)) ,value)
      ; =>
-     `(unfinished)]
+     (set-index-augassign env base index (select-augassign aug-op) value)]
     
     [`(,(or '= (augassign)) ,_ ,_)
      (error "invalid assignment")]
@@ -416,7 +430,7 @@
     
     [`(try ,suite (((except) ,on-except)) #f #f)
      ; =>
-     `(try ,(transform-suite env suite) ,(transform-suite env on-except))]
+     `(try ,(transform-suite env suite) (lambda (ex) ,(transform-suite env on-except)))]
     
     [`(,(or 'global 'nonlocal) . ,_)
      ; =>
@@ -536,9 +550,10 @@
      (unwind-trailer env $expr trailer)]
        
     [(cons trailer rest)
-     (cons trailer rest)]))
-                      
-     
+     ;(unwind-trailer env (unwind-trailers env $expr rest) trailer)]))
+
+     (unwind-trailers env (unwind-trailer env $expr trailer) rest)]))
+      
 ; transforms a Python exp into an HIR exp:
 (define (transform-expr env expr)
   (match expr
@@ -594,7 +609,7 @@
      `(- ,(transform-expr env expr))]
     
     [`("~" ,expr)
-     `(bitwise-not (transform-expr env expr))]
+     `(bitwise-not ,(transform-expr env expr))]
     
     [`(indexed ,expr . ,trailers)
      (unwind-trailers env (transform-expr env expr) trailers)]
