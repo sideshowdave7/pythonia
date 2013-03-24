@@ -30,7 +30,7 @@
      (append more-stmts (flatten-stmts rest))]
     
     [(cons stmt rest)
-     `(unfinished)]))
+     (cons stmt rest)]))
 
 
 ; matches augmented assignment operators:
@@ -513,7 +513,7 @@
      (unwind-trailer env $expr trailer)]
        
     [(cons trailer rest)
-     `(unfinished)]))
+     (cons trailer rest)]))
                       
      
 ; transforms a Python exp into an HIR exp:
@@ -546,50 +546,50 @@
     [`(,(and op (or 'or 'and 'bitwise-or 'bitwise-and 'bitwise-xor)) 
        . ,exprs)
      ; =>
-     `(unfinished)]
+     `(,op ,@(map (λ (a) (transform-expr env a)) exprs))]
     
     [`(not ,expr)
      ; =>
-     `(unfinished)]
+     `(not ,(transform-expr env expr))]
       
     [`(comparison ,base . ,ops)
-     `(unfinished)]
+      (unwind-op select-cmp env (transform-expr env base) ops)]
     
     [`(shift ,base . ,ops)
-     `(unfinished)]
+      (unwind-op select-shift env (transform-expr env base) ops)]
     
     [`(arith ,base . ,ops)
-     `(unfinished)]
-    
+      (unwind-op select-arith env (transform-expr env base) ops)]
+         
     [`(term ,base . ,ops)
-     `(unfinished)]
+      (unwind-op select-term env (transform-expr env base) ops)]
     
     [`("+" ,expr)
-     `(unfinished)]
+     `(+ ,(transform-expr env expr))]
     
     [`("-" ,expr)
-     `(unfinished)]
+     `(- (transform-expr env expr))]
     
     [`("~" ,expr)
-     `(unfinished)]
+     `(bitwise-not (transform-expr env expr))]
     
     [`(indexed ,expr . ,trailers)
-     `(unfinished)]
+     `(,(unwind-trailers env (transform-expr env expr) trailers))]
     
     [`(power ,base ,expn)
-     `(unfinished)]
+     `(expt ,(transform-expr env base) ,(transform-expr env expn))]
     
     [`(set . ,exprs)
-     `(unfinished)]
+     `(set ,@(map (λ (a) (transform-expr env a)) exprs))]
     
     [`(tuple . ,exprs)
-     `(unfinished)]
+     `(tuple ,@(map (λ (a) (transform-expr env a)) exprs))]
     
     [`(list . ,exprs)
-     `(unfinished)]
+     `(py-list* ,@(map (λ (a) (transform-expr env a)) exprs))]
     
     [`(dict . ,pairs)
-     `(unfinished)]
+     `(dict ,@(map (λ (a) (list (transform-expr env (car a)) (transform-expr env (list-ref a 1)))) pairs))]
        
     [else         
      (error (format "cannot transform expr: ~s~n" expr))]))
