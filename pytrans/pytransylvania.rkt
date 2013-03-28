@@ -332,7 +332,7 @@
      (define op (select-augassign aug-op))
      ;(printf "transforming with env ~s: ~s~n" env expr)
      (define result `(,op ,(if global? `(get-global ,lval) lval) ,(transform-expr env expr)))
-     `(unfinished)]
+     `,(if global? `(set-global! ,lval ,result) `(set! ,lval ,result)) ]
     
     
     [`(,(and aug-op (augassign)) ((indexed ,base ,trailers ... ,index)) ,value)
