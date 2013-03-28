@@ -1,14 +1,19 @@
+#Name: David Hurst
+#Partner: Brendan Wanlass
+
+#Project 3, HIR translator
+
 all: pylex pyparse pytrans
 	@echo "compiled"
 
 pylex: pylex.rkt
-	raco exe pylex.rkt
+	@raco exe pylex.rkt
 
 pyparse: pyparse.rkt python-ast.grm.sx
-	raco exe pyparse.rkt
+	@raco exe pyparse.rkt
 
 pytrans: pytransylvania.rkt derivative-parsers.rkt
-	raco exe pytransylvania.rkt
+	@raco exe pytransylvania.rkt
 
 lex: pylex
 	@pylex
@@ -44,3 +49,8 @@ answers:
 
 sextest: pylex pyparse pytrans sdiff
 	for i in tests/*.py; do pylex < $$i | pyparse | ./pytransylvania > $$i.out; ./sdiff $$i.out $$i.expected; done
+
+
+#Name: David Hurst
+#Partner: Brendan Wanlass
+
