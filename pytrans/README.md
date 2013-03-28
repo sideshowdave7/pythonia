@@ -1,14 +1,19 @@
-Usage
-======
+Python HIR translator
 
-## Create answer keys
-This uses ssh to run against caprica and copy get the canonical answers into `testXX.py.expected`. To make this easiest, you should add a caprica Host to your ssh config file.
+Brendan Wanlass, David Hurst
 
-    Host caprica
-        HostName caprica.ucombinator.org
-        User u0xxxxxx
+Usage:
 
-Then run `make answers` which will create all un-made answer keys in `tests/`
+make
+compiles the program
 
-## Actually Test
-    make test
+make trans
+accepts the output of project 2 on STDIN and sends output to STDOUT
+
+make run
+accepts pyhon on STDIN and sends output to STDOUT
+
+make test
+runs our test cases
+
+The program outputs one S-expression containgin the HIR code on success or print an error message containing error on failure.  
