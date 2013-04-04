@@ -24,7 +24,7 @@
 ; atomic? : term -> boolean
 (define (atomic? exp)
   (match exp
-    [`(,(or lambda 'λ) . ,_)     #t]
+    [`(,(or 'lambda 'λ) . ,_)     #t]
     [(? number?)   #t]
     [(? string?)   #t]
     [(? boolean?)  #t]
@@ -104,86 +104,103 @@
 ; desugar-exp : exp -> exp
 (define (desugar-exp exp)
   (match exp
-    [(? symbol?)      (error "havent't handled symbols)")]
+    [(? symbol?)      exp]
     [`(quote ,_)      (error "quotes not allowed in hir")]
 
     [`(letrec ((,vs ,es) ...) . ,body)
-     (error "haven't handled letrec")]
+     (desugar-exp
+      `(let ,(for/list ([v vs])
+               (list v '(void)))
+         ,@(map (λ (v e)
+                  `(set! ,v ,e))
+                vs es)
+         ,@body))]
      
     [`(let ((,vs ,es) ...) . ,body)
-     (error "haven't handled let")]
+     `((λ ,vs ,(desugar-body body)) 
+       ,@(map desugar-exp es))]
         
     [`(let* () ,body)
-     (error "haven't handled let*")]
+    body]
     
     [`(let* ((,v ,e) . ,rest) ,body)
-     (error "haven't handled let*")]
+     `(let ([,v ,e]) ,(desugar-exp `(let* ,rest ,body)))]
     
     [`(,(or 'lambda 'λ) ,params ,body)
-     (error "haven't handled lambda")]
+     `(λ ,params ,(desugar-body body))]
 
     [`(call/ec ,exp)
      (error "haven't handled call/ec")]
     
-    [`(cond)
-     (error "haven't handled cond")]
+    [`(cond)     '(void)]
     
     [`(cond (else ,exp))
-     (error "haven't handled cond")]
+     (desugar-exp exp)]
     
     [`(cond (,test ,exp))
-     (error "haven't handled cond")]
+     `(if ,(desugar-exp test) 
+          ,(desugar-exp exp) 
+          (void))]
      
     [`(cond (,test ,exp) ,rest ...)
-     (error "haven't handled cond")]
+     `(if ,(desugar-exp test)
+          ,(desugar-exp exp)
+          ,(desugar-exp `(cond . ,rest)))]
      
     [`(and)   #t]
     [`(or)    #f]
     
     [`(or ,exp)
-     (error "haven't handled or")]
+     (desugar-exp exp)]
     
     [`(and ,exp)
-     (error "haven't handled and")]
+     (desugar-exp exp)]
     
     [`(or ,exp . ,rest)
-     (error "haven't handled or")]
+     (define $t (gensym 't))
+     (desugar-exp 
+      `(let ((,$t ,exp))
+         (if ,$t ,$t (or . ,rest))))]
      
     [`(and ,exp . ,rest)
-     (error "haven't handled and")]
+     `(if ,(desugar-exp exp)
+          ,(desugar-exp `(and . ,rest))
+          #f)]
      
     [`(if ,test ,exp)
-     (error "haven't handled if")]
+     `(if ,(desugar-exp test) ,(desugar-exp exp) (void))]
     
     [`(if ,test ,exp1 ,exp2)
-     (error "haven't handled if")]
+     `(if ,(desugar-exp test) 
+          ,(desugar-exp exp1) 
+          ,(desugar-exp exp2))]
     
     [`(set! ,v ,exp)
-     (error "haven't handled set!")]
+     `(set! ,v ,(desugar-exp exp))]
 
     [`(assert ,test)
-     (error "haven't handled assert")]
+     `(assert1 (λ () ,(desugar-exp test)))]
     
     [`(assert ,test ,kind)
-     (error "haven't handled assert")]
+     `(assert2 (λ () ,(desugar-exp test)) (λ () ,(desugar-exp kind)))]
     
     [`(get-global ,var)
-     (error "haven't handled get-global")]
+     (global-name var)]
     
     [`(set-global! ,var ,exp)
      (error "haven't handled set-global!")]
     
     [`(begin . ,exps)
-     (error "haven't handled begin")]
+     `(begin ,@(map desugar-exp exps))]
     
     ['(return)
-     (error "haven't handled return")]
+     `(return ,exp)]
     
     ['(break)
-     (error "haven't handled break")]
+     `(break (void))]
     
     ['(continue)
-     (error "haven't handled continue")]
+     `(continue (void))]
 
     [`(while ,cond ,body)
      (error "haven't handled while")]
@@ -216,18 +233,45 @@
      (error "haven't handled throw")]
     
     [(? atomic?)      
-     (error "haven't handled atomic expressions")]
+     exp]
 
     [`(,f . ,args)  
-     (error "haven't handle application forms")]
+     `(,(desugar-exp f) ,@(map desugar-exp args))]
+     
             
     [else 
      (error (format "desugar fail: ~s~n" exp))]))
 
+(define (desugar-body body)
+  (match body
+    [`(,exp)
+     (desugar-exp `(begin ,exp))]
+    
+    [`(,(and (? not-define?) exps) ...)
+     `(begin ,@(map desugar-exp exps))]
+    
+    [`(,tops ... ,exp)
+     (define defs (tops-to-defs tops))
+     (desugar-exp (match defs
+                    [`((define ,vs ,es) ...)
+                     `(letrec ,(map list vs es) ,exp)]))]))
 
+(define (tops-to-defs tops)
+  
+  (define (top-to-def top)
+    (match top
+      [`(define (,f ,params ...) . ,body) 
+       `(define ,f (λ ,params . ,body))]
+    
+      [`(define ,v ,exp)
+       `(define ,v ,exp)]
+    
+      [exp
+       `(define ,(gensym '_) ,exp)]))
+  
+  (map top-to-def tops))
 
-
-(pretty-write (desugar-program (read)))
+(pretty-write (desugar-program (read (open-input-file "test.py"))))
 
 
       
