@@ -115,22 +115,23 @@
                   `(set! ,v ,e))
                 vs es)
          ,@body))]
-     
+    
+    
     [`(let ((,vs ,es) ...) . ,body)
-     `((λ ,vs ,(desugar-body body)) 
+     `((λ ,vs ,(desugar-exp `(begin ,@body))) 
        ,@(map desugar-exp es))]
         
     [`(let* () ,body)
-    body]
+    (desugar-body body)]
     
     [`(let* ((,v ,e) . ,rest) ,body)
      `(let ([,v ,e]) ,(desugar-exp `(let* ,rest ,body)))]
     
     [`(,(or 'lambda 'λ) ,params ,body)
-     `(λ ,params ,(desugar-body body))]
+     `(λ ,params ,(desugar-exp body))]
 
     [`(call/ec ,exp)
-     (error "haven't handled call/ec")]
+     `(call/ec ,(desugar-exp exp))]
     
     [`(cond)     '(void)]
     
@@ -188,7 +189,7 @@
      (global-name var)]
     
     [`(set-global! ,var ,exp)
-     (error "haven't handled set-global!")]
+     `(set! ,(global-name var) ,(desugar-exp exp))]
     
     [`(begin . ,exps)
      `(begin ,@(map desugar-exp exps))]
@@ -203,34 +204,129 @@
      `(continue (void))]
 
     [`(while ,cond ,body)
-     (error "haven't handled while")]
-    
+     `(call/ec ((lambda (break) ((lambda (loop) (begin (set! loop (lambda () (if ,(desugar-exp cond) (begin (call/ec (lambda(continue)  ,(desugar-exp body))) 
+                                                                                                                            (loop)) (void)))) (loop) (void))) (void)))))]
+                                                                         
     [`(while ,cond ,body ,else)
-     (error "haven't handled while")]
+      `(call/ec ((lambda (break) ((lambda (loop) (begin (set! loop (lambda () (if ,(desugar-exp cond) (begin (call/ec (lambda(continue)  ,(desugar-exp body))) 
+                                                                                                               (loop)) (void)))) (loop) ,(desugar-exp else))) (void)))))]
      
     [`(for-each ,var ,seq ,body ,else)
-     (error "haven't handled for-each")]
+     (define $seq (gensym '$seq))
+     (define $loop (gensym '$loop))
+     `(call/ec 
+       (lambda (break)
+         ((lambda (,$seq ,$loop)
+            (begin
+              (begin
+                (if (set? ,$seq)
+                  (for-set ,$seq ,$loop)
+                  (if (tuple? $seq)
+                      (for-tuple ,$seq ,$loop)
+                      (if (py-list? ,$seq)
+                          (for-py-list ,$seq ,$loop)
+                          (if (dict? ,$seq) (for-dict ,$seq ,$loop) (void)))))
+              ,(desugar-exp else))))
+         ,(desugar-exp seq)
+         (lambda (,var)
+           (call/ec
+            (lambda (continue)
+              ,(desugar-exp body)))))))]
     
-    [`(for-each ,var ,exp ,body)
-     (error "haven't handled for-each")]
+    [`(for-each ,var ,seq ,body)
+     (define $seq (gensym '$seq))
+     (define $loop (gensym '$loop))
+     `(call/ec 
+       (lambda (break)
+         ((lambda (,$seq ,$loop)
+            (begin
+              (begin
+                (if (set? ,$seq)
+                  (for-set ,$seq ,$loop)
+                  (if (tuple? $seq)
+                      (for-tuple ,$seq ,$loop)
+                      (if (py-list? ,$seq)
+                          (for-py-list ,$seq ,$loop)
+                          (if (dict? ,$seq) (for-dict ,$seq ,$loop) (void)))))
+              (void))))
+         ,(desugar-exp seq)
+         (lambda (,var)
+           (call/ec
+            (lambda (continue)
+              ,(desugar-exp body)))))))]
+         
     
     [`(dict (,keys ,values) ...)
-     (error "haven't handled dict")]
+     (define mah-list '())
+     `(dict ,@(map (λ (key value) `(,key ,value)) keys values))]
     
     [`(set . ,values)
-     (error "haven't handled set")]
+     `(set ,@values)]
     
     [`(tuple . ,values)
-     (error "haven't handled tuple")]
+     `(tuple ,@(map (λ (value) (desugar-exp value)) values))]
     
     [`(py-list* . ,values)
-     (error "haven't handled py-list*")]
+     `(py-list* ,@values)]
     
     [`(try ,body ,handler)
-     (error "haven't handled try")]
+     (define $ex (gensym '$ex))
+     (define $ec (gensym '$ec))
+   `((lambda ($old-handler)
+      (begin
+        ((lambda ($old-return)
+           (begin
+             ((lambda ($old-continue)
+                (begin
+                  ((lambda ($old-break)
+                     (begin
+                       ((lambda (return)
+                          (begin
+                            ((lambda (continue)
+                               (begin
+                                 ((lambda (break)
+                                    (begin
+                                      (call/ec
+                                       (lambda (,$ec)
+                                         (begin
+                                           (set! $current-handler
+                                             (lambda (,$ex)
+                                               (begin
+                                                 (set! $current-handler
+                                                   $old-handler)
+                                                 (,$ec
+                                                  ((lambda (ex)
+                                                     ((lambda ()
+                                                        ,(desugar-exp body)))
+                                                   ,$ex)))))
+                                           ((lambda (rv)
+                                              (begin
+                                                (begin
+                                                  (set! $current-handler
+                                                    $old-handler)
+                                                  rv)))
+                                            ((lambda ()
+                                              ,(desugar-exp handler)))))))))
+                                  (lambda ()
+                                    (begin
+                                      (set! $current-handler $old-handler)
+                                      ($old-break (void)))))))
+                             (lambda ()
+                               (begin
+                                 (set! $current-handler $old-handler)
+                                 ($old-continue (void)))))))
+                        (lambda (rv)
+                          (begin
+                            (set! $current-handler $old-handler)
+                            (return rv))))))
+                   break)))
+              continue)))
+         return)))
+    $current-handler))]
+
      
     [`(throw ,exp)
-     (error "haven't handled throw")]
+     `($current-handler ,exp)]
     
     [(? atomic?)      
      exp]
@@ -238,14 +334,14 @@
     [`(,f . ,args)  
      `(,(desugar-exp f) ,@(map desugar-exp args))]
      
-            
     [else 
      (error (format "desugar fail: ~s~n" exp))]))
 
 (define (desugar-body body)
   (match body
+    
     [`(,exp)
-     (desugar-exp `(begin ,exp))]
+     (desugar-exp exp)]
     
     [`(,(and (? not-define?) exps) ...)
      `(begin ,@(map desugar-exp exps))]
