@@ -296,8 +296,7 @@
                                                    $old-handler)
                                                  (,$ec
                                                   ((lambda (ex)
-                                                     ((lambda ()
-                                                        ,(desugar-exp body)))
+                                                        ,(desugar-exp handler)
                                                    ,$ex)))))
                                            ((lambda (rv)
                                               (begin
@@ -305,8 +304,7 @@
                                                   (set! $current-handler
                                                     $old-handler)
                                                   rv)))
-                                            ((lambda ()
-                                              ,(desugar-exp handler)))))))))
+                                              ,(desugar-exp body)))))))
                                   (lambda ()
                                     (begin
                                       (set! $current-handler $old-handler)
