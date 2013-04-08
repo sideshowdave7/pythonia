@@ -39,14 +39,14 @@
 
 
 (define prims
-  (apply set '( + - / *  = < > py-print not assert1 
+  (apply set '( + - / *  < > py-print not assert1 
                   set? py-list? dict? tuple? string? integer?
                   bitwise-not dict-remove! dict-ref tuple-ref
                   py-list-remove! py-list-ref
                   bitwise-and bitwise-or bitwise-xor
-                  for-dict for-tuple for-py-list for-set
                   assert2 expt quotient modulo << >> equal? >= <= not-equal?
-                  in? not-in? eq? not-eq? py-list-set! dict-set! tuple-set!)))
+                  in? not-in? eq? not-eq? py-list-set! dict-set! tuple-set!
+                  )))
 
 (define (aexpr? expr)
   (match expr
@@ -55,7 +55,11 @@
          (? number?)
          (? string?)
          (? boolean?)
-         '(void))
+         '(void)
+         `(py-list* ,_ ...)
+         `(set ,_ ...)
+         `(dict ,_ ...)
+         `(tuple ,_ ...))
      ; =>
      #t]
     
@@ -85,6 +89,18 @@
            `(if ,aexp 
                 ,(T-c exprt cont)
                 ,(T-c exprf cont))))]
+    
+    [`(for-set ,seq ,loop)
+     `(for-set-k ,seq ,loop ,k)]
+    
+    [`(for-tuple ,seq ,loop)
+     `(for-tuple-k ,seq ,loop ,k)]
+    
+    [`(for-py-list-k ,seq ,loop)
+     `(for-py-list-k ,seq ,loop ,k)]
+    
+    [`(for-dict ,seq ,loop)
+     `(for-dict-k ,seq ,loop ,k)]
     
     [`(set! ,var ,expr)
       (T-k expr (lambda (aexp)
@@ -130,6 +146,7 @@
       (T-k expr (lambda (aexp)
                   `(set-then! ,var ,aexp
                               (,c (void)))))]
+
     
     [`(letrec ([,vs ,as] ...) ,expr)
      `(letrec (,@(map list vs (map M as))) 
@@ -140,12 +157,21 @@
      (T*-k es (lambda ($es)
                 `((cps ,p) ,@$es ,c)))]
     
+    
+    [`(for-set ,seq ,loop)
+     (define $k (gensym '$k))
+      (T-k expr $k)]
+    
+    
+    [`(for-tuple ,seq ,loop)
+     (define $k (gensym '$k))
+      (T-k expr $k)]
+    
     [`(,f ,es ...)    
       ; =>
       (T-k f (lambda ($f)
              (T*-k es (lambda ($es)
                       `(,$f ,@$es ,c)))))]))
-
 
 (define (T*-k exprs k)
   (cond
@@ -169,7 +195,11 @@
          (? number?)
          (? string?)
          (? boolean?)
-         '(void))     
+         '(void)
+         `(py-list* ,_ ...)
+         `(set ,_ ...)
+         `(dict ,_ ...)
+         `(tuple ,_ ...))     
      ; =>
      aexpr]
     
@@ -205,4 +235,4 @@
   ))
   
 
-(pretty-write (cps-transform-program (read)))
+(pretty-write (cps-transform-program (read (open-input-file "test.py"))))
