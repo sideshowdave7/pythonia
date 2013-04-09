@@ -90,17 +90,10 @@
                 ,(T-c exprt cont)
                 ,(T-c exprf cont))))]
     
-    [`(for-set ,seq ,loop)
-     `(for-set-k ,seq ,loop ,k)]
     
-    [`(for-tuple ,seq ,loop)
-     `(for-tuple-k ,seq ,loop ,k)]
+
     
-    [`(for-py-list-k ,seq ,loop)
-     `(for-py-list-k ,seq ,loop ,k)]
     
-    [`(for-dict ,seq ,loop)
-     `(for-dict-k ,seq ,loop ,k)]
     
     [`(set! ,var ,expr)
       (T-k expr (lambda (aexp)
@@ -158,14 +151,10 @@
                 `((cps ,p) ,@$es ,c)))]
     
     
-    [`(for-set ,seq ,loop)
-     (define $k (gensym '$k))
-      (T-k expr $k)]
-    
-    
-    [`(for-tuple ,seq ,loop)
-     (define $k (gensym '$k))
-      (T-k expr $k)]
+    [`(,(and funct (or 'for-set 'for-tuple 'for-py-list 'for-dict)) ,es ...)
+     
+    (T*-k es (lambda ($es)
+                `(,(string->symbol (string-append (symbol->string funct) "-k")) ,@$es ,c)))]
     
     [`(,f ,es ...)    
       ; =>
