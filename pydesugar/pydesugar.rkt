@@ -367,7 +367,7 @@
   
   (map top-to-def tops))
 
-(pretty-write (desugar-program (read (open-input-file "test.py"))))
+(pretty-write (desugar-program (read)))
 
 
       
