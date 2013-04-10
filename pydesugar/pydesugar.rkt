@@ -118,7 +118,7 @@
     
     
     [`(let ((,vs ,es) ...) . ,body)
-     `((λ ,vs ,(desugar-exp `(begin ,@body))) 
+     `((lambda ,vs ,(desugar-exp `(begin ,@body))) 
        ,@(map desugar-exp es))]
         
     [`(let* () ,body)
@@ -128,7 +128,7 @@
      `(let ([,v ,e]) ,(desugar-exp `(let* ,rest ,body)))]
     
     [`(,(or 'lambda 'λ) ,params ,body)
-     `(λ ,params ,(desugar-exp body))]
+     `(lambda ,params ,(desugar-exp body))]
 
     [`(call/ec ,exp)
      `(call/ec ,(desugar-exp exp))]
@@ -204,12 +204,12 @@
      `(continue (void))]
 
     [`(while ,cond ,body)
-     `(call/ec ((lambda (break) ((lambda (loop) (begin (set! loop (lambda () (if ,(desugar-exp cond) (begin (call/ec (lambda(continue)  ,(desugar-exp body))) 
-                                                                                                                            (loop)) (void)))) (loop) (void))) (void)))))]
+     `(call/ec (lambda (break) ((lambda (loop) (begin (set! loop (lambda () (if ,(desugar-exp cond) (begin (call/ec (lambda(continue)  ,(desugar-exp body))) 
+                                                                                                                            (loop)) (void)))) (loop) (void))) (void))))]
                                                                          
     [`(while ,cond ,body ,else)
-      `(call/ec ((lambda (break) ((lambda (loop) (begin (set! loop (lambda () (if ,(desugar-exp cond) (begin (call/ec (lambda(continue)  ,(desugar-exp body))) 
-                                                                                                               (loop)) (void)))) (loop) ,(desugar-exp else))) (void)))))]
+      `(call/ec (lambda (break) ((lambda (loop) (begin (set! loop (lambda () (if ,(desugar-exp cond) (begin (call/ec (lambda(continue)  ,(desugar-exp body))) 
+                                                                                                               (loop)) (void)))) (loop) ,(desugar-exp else))) (void))))]
      
     [`(for-each ,var ,seq ,body ,else)
      (define $seq (gensym '$seq))
@@ -221,7 +221,7 @@
               (begin
                 (if (set? ,$seq)
                   (for-set ,$seq ,$loop)
-                  (if (tuple? $seq)
+                  (if (tuple? ,$seq)
                       (for-tuple ,$seq ,$loop)
                       (if (py-list? ,$seq)
                           (for-py-list ,$seq ,$loop)
@@ -243,7 +243,7 @@
               (begin
                 (if (set? ,$seq)
                   (for-set ,$seq ,$loop)
-                  (if (tuple? $seq)
+                  (if (tuple? ,$seq)
                       (for-tuple ,$seq ,$loop)
                       (if (py-list? ,$seq)
                           (for-py-list ,$seq ,$loop)
@@ -295,8 +295,8 @@
                                                  (set! $current-handler
                                                    $old-handler)
                                                  (,$ec
-                                                  ((lambda (ex)
-                                                        ,(desugar-exp handler)
+                                                  
+                                                        (,(desugar-exp handler)
                                                    ,$ex)))))
                                            ((lambda (rv)
                                               (begin
@@ -320,7 +320,7 @@
                    break)))
               continue)))
          return)))
-    $current-handler))]
+    $current-handler)]
 
      
     [`(throw ,exp)
@@ -355,7 +355,7 @@
   (define (top-to-def top)
     (match top
       [`(define (,f ,params ...) . ,body) 
-       `(define ,f (λ ,params . ,body))]
+       `(define ,f (lambda ,params . ,body))]
     
       [`(define ,v ,exp)
        `(define ,v ,exp)]
