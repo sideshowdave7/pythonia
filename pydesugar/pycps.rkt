@@ -129,7 +129,7 @@
     [`(set! ,var ,expr)
       (T-k expr (lambda (aexp)
                   `(set-then! ,var ,aexp
-                              `(,c (void)))))]
+                              (,c (void)))))]
     
     [`(letrec ([,vs ,as] ...) ,expr)
      `(letrec (,@(map list vs (map M as))) 
