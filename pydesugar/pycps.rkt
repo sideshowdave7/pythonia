@@ -96,7 +96,7 @@
     [`(for-tuple ,seq ,loop)
      `(for-tuple-k ,seq ,loop ,k)]
     
-    [`(for-py-list-k ,seq ,loop)
+    [`(for-py-list ,seq ,loop)
      `(for-py-list-k ,seq ,loop ,k)]
     
     [`(for-dict ,seq ,loop)
@@ -164,6 +164,14 @@
     
     
     [`(for-tuple ,seq ,loop)
+     (define $k (gensym '$k))
+      (T-k expr $k)]
+    
+   [`(for-py-list ,seq ,loop)
+     (define $k (gensym '$k))
+      (T-k expr $k)]
+    
+    [`(for-dict ,seq ,loop)
      (define $k (gensym '$k))
       (T-k expr $k)]
     
