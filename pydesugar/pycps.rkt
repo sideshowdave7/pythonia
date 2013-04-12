@@ -204,4 +204,4 @@
   ))
   
 
-(pretty-write (cps-transform-program (read (open-input-file "test.py"))))
+(pretty-write (cps-transform-program (read)))
