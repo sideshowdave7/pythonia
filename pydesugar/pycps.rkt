@@ -168,7 +168,8 @@
     [(or (? symbol?)     
          (? number?)
          (? string?)
-         (? boolean?))     
+         (? boolean?)
+         '(void))     
      ; =>
      aexpr]
     
