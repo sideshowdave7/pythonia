@@ -121,8 +121,8 @@
       ;`((lambda (,$k)
           (T-k exprc (lambda (aexp)
                         `(if ,aexp 
-                             ,(T-c exprt $k)
-                             ,(T-c exprf $k))))]
+                             ,(T-c exprt c)
+                             ,(T-c exprf c))))]
         ;)
         ;,c)]
     
