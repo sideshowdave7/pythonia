@@ -1,52 +1,15 @@
 #lang racket
 
-; Input language:
-
-; <aexpr> ::= (λ (<var>*) <expr>)
-;          |  <var>
-;          |  #t | #f
-;          |  <number>
-;          |  <string>
-;          |  (void)
-;          |  call/ec | call/cc
-
-; <expr> ::= <aexpr>
-;         |  (begin <expr>*)
-;         |  (if <expr> <expr> <expr>)
-;         |  (set! <var> <expr>)
-;         |  (letrec ([<var> <aexpr>]*) <expr>)
-;         |  (<prim> <expr>*)
-;         |  (<expr> <expr>*)
-
-; <prim> = { + , - , / , * , = }
-
-
-
-; Output language:
-
-; <aexp> ::= (λ (<var>*) <cexp>)
-;         |  <var>
-;         |  #t | #f
-;         |  <number>
-;         |  <string>
-;         |  (void)
-
-; <cexp> ::= (if <aexp> <cexp> <cexp>)
-;         |  (set-then! <var> <aexp> <cexp>)
-;         |  (letrec ([<var> <aexp>]*) <cexp>)
-;         |  ((cps <prim>) <aexp>*)
-;         |  (<aexp> <aexp>*)
-
-
 (define prims
-  (apply set '( + - / *  < > py-print not assert1 
+  (apply set '( + - / *  < > py-print not assert1 assert2
                   set? py-list? dict? tuple? string? integer?
                   bitwise-not dict-remove! dict-ref tuple-ref
                   py-list-remove! py-list-ref
                   bitwise-and bitwise-or bitwise-xor
-                  assert2 expt quotient modulo << >> equal? >= <= not-equal?
-                  in? not-in? eq? not-eq? py-list-set! dict-set! tuple-set!
-                  )))
+                  expt quotient modulo << >> equal? >= <= not-equal?
+                  in? not-in? eq? not-eq? py-list-set! dict-set! tuple-set!)
+         ))
+                  
 
 (define (aexpr? expr)
   (match expr
@@ -90,11 +53,7 @@
                 ,(T-c exprt cont)
                 ,(T-c exprf cont))))]
     
-    
-
-    
-    
-    
+      
     [`(set! ,var ,expr)
       (T-k expr (lambda (aexp)
                   `(set-then! ,var ,aexp
@@ -127,13 +86,16 @@
       ; We have to bind the cont to avoid
       ; a possible code blow-up:
       (define $k (gensym '$k))
-      ;`((lambda (,$k)
           (T-k exprc (lambda (aexp)
                         `(if ,aexp 
                              ,(T-c exprt c)
                              ,(T-c exprf c))))]
-        ;)
-        ;,c)]
+
+    
+    [`(,(and funct (or 'for-set 'for-tuple 'for-py-list 'for-dict)) ,es ...)
+     
+    (T*-k es (lambda ($es)
+                `(,(string->symbol (string-append (symbol->string funct) "-k")) ,@$es ,c)))]
     
     [`(set! ,var ,expr)
       (T-k expr (lambda (aexp)
@@ -148,13 +110,7 @@
     [`(,(and p (? prim?)) ,es ...)
       ; =>
      (T*-k es (lambda ($es)
-                `((cps ,p) ,@$es ,c)))]
-    
-    
-    [`(,(and funct (or 'for-set 'for-tuple 'for-py-list 'for-dict)) ,es ...)
-     
-    (T*-k es (lambda ($es)
-                `(,(string->symbol (string-append (symbol->string funct) "-k")) ,@$es ,c)))]
+                `((cps ,p) ,@$es ,c)))]  
     
     [`(,f ,es ...)    
       ; =>
@@ -192,7 +148,6 @@
      ; =>
      aexpr]
     
-    
     [else 
      (error "Not an aexpr!")]))
 
@@ -224,4 +179,4 @@
   ))
   
 
-(pretty-write (cps-transform-program (read (open-input-file "test.py"))))
+(pretty-write (cps-transform-program (read)))
