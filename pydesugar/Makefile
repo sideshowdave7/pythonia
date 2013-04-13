@@ -14,7 +14,7 @@ desugar: pydesugar
 	@ $(PYLEX) | $(PYPARSE) | $(PYTRANS) | $(PYDESUGAR)
 
 cps: pydesugar pycps 
-	@ $(PYLEX) | $(PYPARSE) | $(PYTRANS) | $(PYDESUGAR) | $(PYCPS)
+	@ $(PYDESUGAR) | $(PYCPS)
 
 
 pycps: pycps.rkt
@@ -22,6 +22,10 @@ pycps: pycps.rkt
 
 pydesugar: pydesugar.rkt
 	raco exe pydesugar.rkt
+
+run: pydesugar pycps 
+	@ $(PYLEX) | $(PYPARSE) | $(PYTRANS) | $(PYDESUGAR) | $(PYCPS)
+
 
 
 tests/%.lxd: tests/%.py
