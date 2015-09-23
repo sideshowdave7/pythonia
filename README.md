@@ -1,4 +1,4 @@
 pythonia
 ========
 
-PYTHONIA MUAHAHAH
+Python interpreter written in Racket
